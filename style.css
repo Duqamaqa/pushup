@@ -1,0 +1,236 @@
+:root {
+  --bg: #f6f7fb;
+  --card: #ffffff;
+  --text: #1f2a37;
+  --muted: #6b7280;
+  --primary: #2563eb;
+  --primary-pressed: #1e40af;
+  --danger: #ef4444;
+  --danger-pressed: #b91c1c;
+  --success: #10b981;
+  --ring: rgba(37, 99, 235, 0.3);
+  --shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  --radius: 14px;
+  --gap: 14px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  color: var(--text);
+  background: var(--bg);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.container {
+  width: 100%;
+  max-width: 460px;
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 22px;
+}
+
+h1 {
+  margin: 2px 0 16px;
+  font-size: 1.6rem;
+  line-height: 1.2;
+}
+
+.exercise-list {
+  display: grid;
+  gap: 14px;
+}
+
+.stack {
+  display: grid;
+  gap: var(--gap);
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field.compact label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+input[type="text"],
+input[type="number"] {
+  width: 100%;
+  padding: 14px 14px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  font-size: 16px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input::placeholder {
+  color: #9ca3af;
+}
+
+input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--ring);
+}
+
+.field.invalid input {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15);
+}
+
+.error-msg {
+  color: #ef4444;
+  font-size: 12px;
+}
+
+button {
+  appearance: none;
+  border: none;
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #eef2ff;
+  color: var(--text);
+  transition: transform 0.02s ease, background 0.15s ease, box-shadow 0.15s ease;
+  width: auto;
+  min-height: 48px;
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button.primary {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.25);
+}
+
+button.primary:active {
+  background: var(--primary-pressed);
+}
+
+button.danger {
+  background: var(--danger);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(239, 68, 68, 0.25);
+}
+
+button.danger:active {
+  background: var(--danger-pressed);
+}
+
+button.large {
+  width: 100%;
+  padding: 16px 18px;
+  font-size: 18px;
+  margin-top: 8px;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.remaining-wrap { display: grid; place-items: center; margin: 8px 0; }
+.exercise-remaining {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  font-size: clamp(56px, 14vw, 112px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  text-align: center;
+  color: var(--text);
+  text-shadow: 0 1px 0 #fff;
+}
+.done-msg { text-align: center; color: var(--success); font-weight: 700; margin: 6px 0 10px; }
+
+.note {
+  margin: 8px 0 14px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Exercise card */
+.exercise-card {
+  background: var(--card);
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 14px;
+}
+.exercise-card h2 {
+  margin: 0 0 6px;
+  font-size: 1.1rem;
+}
+.card-actions {
+  margin: 8px 0;
+}
+.card-toolbar {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+@media (min-width: 420px) {
+  .card-toolbar { grid-template-columns: 1fr 1fr 1fr; }
+}
+.card-toolbar button { width: 100%; }
+
+/* Modal */
+.modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,0.4);
+  padding: 16px;
+}
+.modal-card {
+  width: 100%;
+  max-width: 460px;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+.modal-card h2 { margin: 0 0 8px; }
+.modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+
+/* Success flash animation for decrement */
+@keyframes flashSuccess {
+  0% { transform: scale(1); background-color: transparent; }
+  25% { transform: scale(1.02); background-color: rgba(16, 185, 129, 0.08); }
+  100% { transform: scale(1); background-color: transparent; }
+}
+
+.flash-success {
+  animation: flashSuccess 320ms ease-out;
+  border-radius: 16px;
+}

@@ -1,10 +1,15 @@
 :root {
+  /* Theme variables (light) */
   --bg: #f6f7fb;
-  --card: #ffffff;
-  --text: #1f2a37;
+  --fg: #1f2a37;
   --muted: #6b7280;
-  --primary: #2563eb;
-  --primary-pressed: #1e40af;
+  --card: #ffffff;
+  --accent: #2563eb;
+  --btn-fg: #ffffff;
+  --border: #e5e7eb;
+  --backdrop: rgba(0,0,0,0.4);
+
+  /* Other constants */
   --danger: #ef4444;
   --danger-pressed: #b91c1c;
   --success: #10b981;
@@ -12,6 +17,17 @@
   --shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
   --radius: 14px;
   --gap: 14px;
+}
+
+:root.dark {
+  --bg: #0f172a;
+  --fg: #e5e7eb;
+  --muted: #94a3b8;
+  --card: #0b1222;
+  --accent: #3b82f6;
+  --btn-fg: #ffffff;
+  --border: #273044;
+  --backdrop: rgba(0,0,0,0.6);
 }
 
 #toast {
@@ -23,8 +39,9 @@
   max-width: 90vw;
   padding: 12px 16px;
   border-radius: 12px;
-  background: rgba(0,0,0,0.85);
-  color: #fff;
+  background: var(--card);
+  color: var(--fg);
+  border: 1px solid var(--border);
   font-size: 16px;
   text-align: center;
   opacity: 0;
@@ -50,7 +67,7 @@ html, body {
 body {
   margin: 0;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  color: var(--text);
+  color: var(--fg);
   background: var(--bg);
   display: grid;
   place-items: center;
@@ -84,6 +101,14 @@ h1 {
   gap: 14px;
 }
 
+/* Top toolbar */
+#topToolbar.toolbar {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
 .stack {
   display: grid;
   gap: var(--gap);
@@ -104,20 +129,20 @@ input[type="number"] {
   width: 100%;
   padding: 14px 14px;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  background: #fff;
+  border: 1px solid var(--border);
+  background: var(--card);
   font-size: 16px;
-  color: var(--text);
+  color: var(--fg);
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 input::placeholder {
-  color: #9ca3af;
+  color: var(--muted);
 }
 
 input:focus {
-  border-color: var(--primary);
+  border-color: var(--accent);
   box-shadow: 0 0 0 4px var(--ring);
 }
 
@@ -133,14 +158,14 @@ input:focus {
 
 button {
   appearance: none;
-  border: none;
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px;
   font-size: 17px;
   font-weight: 600;
   cursor: pointer;
-  background: #eef2ff;
-  color: var(--text);
+  background: var(--card);
+  color: var(--fg);
   transition: transform 0.02s ease, background 0.15s ease, box-shadow 0.15s ease;
   width: auto;
   min-height: 48px;
@@ -151,18 +176,20 @@ button:active {
 }
 
 button.primary {
-  background: var(--primary);
-  color: #fff;
+  background: var(--accent);
+  color: var(--btn-fg);
+  border-color: transparent;
   box-shadow: 0 6px 14px rgba(37, 99, 235, 0.25);
 }
 
 button.primary:active {
-  background: var(--primary-pressed);
+  filter: brightness(0.95);
 }
 
 button.danger {
   background: var(--danger);
   color: #fff;
+  border-color: transparent;
   box-shadow: 0 6px 14px rgba(239, 68, 68, 0.25);
 }
 
@@ -189,7 +216,7 @@ button.large {
   line-height: 1;
   letter-spacing: -0.02em;
   text-align: center;
-  color: var(--text);
+  color: var(--fg);
   text-shadow: 0 1px 0 #fff;
 }
 .done-msg { text-align: center; color: var(--success); font-weight: 700; margin: 6px 0 10px; }
@@ -204,7 +231,7 @@ button.large {
 /* Exercise card */
 .exercise-card {
   background: var(--card);
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 14px;
   box-shadow: var(--shadow);
   padding: 14px;
@@ -212,6 +239,19 @@ button.large {
 .exercise-card h2 {
   margin: 0 0 6px;
   font-size: 1.1rem;
+}
+.streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(37, 99, 235, 0.12);
+  padding: 4px 10px;
+  border-radius: 999px;
+  width: max-content;
+  margin: 4px 0 8px;
 }
 .card-actions {
   margin: 8px 0;
@@ -226,25 +266,63 @@ button.large {
 }
 .card-toolbar button { width: 100%; }
 
+/* Quick steps button group */
+.quick-steps {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.quick-steps button {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 /* Modal */
 .modal {
   position: fixed;
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgba(0,0,0,0.4);
+  background: var(--backdrop);
   padding: 16px;
 }
+.hidden { display: none !important; }
 .modal-card {
   width: 100%;
   max-width: 460px;
-  background: #fff;
+  background: var(--card);
   border-radius: 14px;
   box-shadow: var(--shadow);
   padding: 16px;
 }
 .modal-card h2 { margin: 0 0 8px; }
 .modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+
+/* History modal content (parallel to modal-card) */
+.modal-content {
+  width: 100%;
+  max-width: 520px;
+  background: var(--card);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+.modal-content h2 { margin: 0 0 8px; }
+.history-list {
+  max-height: 320px;
+  overflow: auto;
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+}
+.history-list .row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 10px;
+  font-size: 14px;
+}
+.history-list .row .muted { color: var(--muted); }
 
 /* Success flash animation for decrement */
 @keyframes flashSuccess {
@@ -256,4 +334,43 @@ button.large {
 .flash-success {
   animation: flashSuccess 320ms ease-out;
   border-radius: 16px;
+}
+
+/* Switch (theme toggle) */
+.switch {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--fg);
+}
+.switch input[type="checkbox"] {
+  appearance: none;
+  width: 44px;
+  height: 24px;
+  background: var(--border);
+  border-radius: 999px;
+  position: relative;
+  outline: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.switch input[type="checkbox"]::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--card);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  transition: transform 0.2s ease;
+}
+.switch input[type="checkbox"]:checked {
+  background: var(--accent);
+}
+.switch input[type="checkbox"]:checked::after {
+  transform: translateX(20px);
 }

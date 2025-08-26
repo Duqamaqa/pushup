@@ -12,10 +12,19 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <meta name="theme-color" content="#111111" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <main class="container">
     <h1>My Exercises</h1>
+    <div id="topToolbar" class="toolbar">
+      <button id="exportBtn">Export JSON</button>
+      <button id="importBtn">Import JSON</button>
+      <label class="switch">
+        <input type="checkbox" id="darkToggle">
+        <span>Dark</span>
+      </label>
+    </div>
     <div id="exerciseListContainer" class="exercise-list"></div>
     <button id="addExerciseBtn" class="primary large btn-block">➕ Add New Exercise</button>
   </main>
@@ -37,6 +46,14 @@
           <input type="number" id="decrementStep" placeholder="Decrement per tap (e.g., 10)" min="1" inputmode="numeric" />
           <small class="error-msg" id="decrementStepError" aria-live="polite" hidden>Decrement step must be ≥ 1.</small>
         </div>
+        <div class="field compact">
+          <label for="streakThreshold">Streak threshold (0.5–1.0)</label>
+          <input type="number" id="streakThreshold" min="0.5" max="1.0" step="0.05" placeholder="1.0" inputmode="decimal" />
+        </div>
+        <div class="field compact">
+          <label for="quickStepsInput">Quick steps (comma-separated, e.g., 1,5,10)</label>
+          <input type="text" id="quickStepsInput" placeholder="e.g., 1,5,10" autocomplete="off" />
+        </div>
       </div>
       <div class="modal-actions">
         <button id="saveExerciseBtn" class="primary btn-block">Save</button>
@@ -46,6 +63,18 @@
   </section>
 
   <div id="toast" aria-live="polite"></div>
+
+  <div id="historyModal" class="modal hidden">
+    <div class="modal-content">
+      <h2 id="historyTitle">History</h2>
+      <div id="historyStats"></div>
+      <div id="historyList" class="history-list"></div>
+      <canvas id="historyChart" width="400" height="260"></canvas>
+      <div class="modal-actions">
+        <button id="closeHistory">Close</button>
+      </div>
+    </div>
+  </div>
 
   <script defer src="app.js"></script>
 </body>

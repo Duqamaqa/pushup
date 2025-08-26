@@ -70,6 +70,87 @@
     return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
   }
 
+  // Toast helper
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(() => el.classList.remove('show'), 1600);
+  }
+
+  // === URL Quick Actions ===
+  function handleURLQuickAction() {
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+    if (![...params.keys()].length) return;
+
+    const decStr = params.get('dec');
+    const addStr = params.get('add');
+    const exName = params.get('exercise');
+
+    const multi = typeof loadExercises === 'function';
+    const clamp0 = (n) => Math.max(0, n|0);
+
+    const actOn = (applyFn) => {
+      if (multi) {
+        let list = loadExercises() || [];
+        if (!list.length) return;
+        let idx = 0;
+        if (exName) {
+          const toSlug = (s) => (s || '').toLowerCase().trim().replace(/\s+/g, '-');
+          const needleRaw = exName;
+          const needle = needleRaw.trim();
+          // 1) exact case-insensitive match (trimmed)
+          let i = list.findIndex(e => ((e.exerciseName || '').toLowerCase().trim() === needle.toLowerCase()));
+          // 2) slug compare if not found
+          if (i < 0) {
+            const nSlug = toSlug(needleRaw);
+            i = list.findIndex(e => toSlug(e.exerciseName) === nSlug);
+          }
+          // 3) fallback to first exercise
+          if (i >= 0) idx = i;
+        }
+        const ex = list[idx];
+        applyDailyRollover(ex);
+        applyFn(ex);
+        ex.remaining = clamp0(ex.remaining);
+        saveExercises(list);
+        renderDashboard();
+      } else {
+        let s = loadState && loadState();
+        if (!s) return;
+        applyDailyRollover(s);
+        applyFn(s);
+        s.remaining = clamp0(s.remaining);
+        saveState(s);
+        showDashboard();
+      }
+    };
+
+    let toastMsg = null;
+    if (decStr) {
+      const dec = Math.max(1, parseInt(decStr, 10) || 0);
+      actOn((s) => { s.remaining -= dec; });
+      toastMsg = `Logged −${dec}`;
+    } else if (addStr) {
+      const times = Math.max(1, parseInt(addStr, 10) || 0);
+      actOn((s) => { s.remaining += (s.dailyTarget * times); });
+      toastMsg = `Added +${times}× target`;
+    }
+
+    if (toastMsg) showToast(toastMsg);
+
+    // strip query so action won't repeat on refresh/back
+    window.history.replaceState(null, '', url.pathname);
+
+    // If running as a PWA in standalone mode, auto-close after a short delay
+    if (toastMsg && window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
+      setTimeout(() => window.close(), 700);
+    }
+  }
+
   // ---------- Elements ----------
   const el = {
     list: document.getElementById('exerciseListContainer'),
@@ -217,6 +298,8 @@
     let changed = false;
     list.forEach((ex) => { if (applyDailyRollover(ex)) changed = true; });
     if (changed) saveExercises(list);
+    // Handle any URL quick actions before the first render
+    handleURLQuickAction();
     renderDashboard();
 
     el.addExerciseBtn?.addEventListener('click', () => openModal('add'));
@@ -271,9 +354,11 @@
       renderDashboard();
     });
 
-    // Register service worker for PWA/offline
+    // Register service worker for PWA/offline (robust, waits for full load)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(console.error);
+      });
     }
   });
 
@@ -286,4 +371,3 @@
     applyDailyRollover,
   };
 })();
-

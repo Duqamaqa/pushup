@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Daily Exercise Counter</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#111111" />
+</head>
+<body>
+  <main class="container">
+    <h1>My Exercises</h1>
+    <div id="exerciseListContainer" class="exercise-list"></div>
+    <button id="addExerciseBtn" class="primary large btn-block">➕ Add New Exercise</button>
+  </main>
+
+  <!-- Modal: Add/Edit Exercise -->
+  <section id="setup-view" class="modal" aria-labelledby="modal-title" aria-modal="true" hidden>
+    <div class="modal-card" role="dialog">
+      <h2 id="modal-title">Add/Edit Exercise</h2>
+      <div class="stack">
+        <div class="field">
+          <input type="text" id="exerciseName" placeholder="Exercise name (e.g., Push-ups)" autocomplete="off" />
+          <small class="error-msg" id="exerciseNameError" aria-live="polite" hidden>Enter an exercise name.</small>
+        </div>
+        <div class="field">
+          <input type="number" id="dailyTarget" placeholder="Daily target (e.g., 50)" min="1" inputmode="numeric" />
+          <small class="error-msg" id="dailyTargetError" aria-live="polite" hidden>Daily target must be ≥ 1.</small>
+        </div>
+        <div class="field">
+          <input type="number" id="decrementStep" placeholder="Decrement per tap (e.g., 10)" min="1" inputmode="numeric" />
+          <small class="error-msg" id="decrementStepError" aria-live="polite" hidden>Decrement step must be ≥ 1.</small>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="saveExerciseBtn" class="primary btn-block">Save</button>
+        <button id="cancelBtn" class="btn-block">Cancel</button>
+      </div>
+    </div>
+  </section>
+
+  <script defer src="app.js"></script>
+</body>
+</html>

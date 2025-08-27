@@ -109,6 +109,9 @@
               <button id="addExerciseBtn" class="btn primary wfull">+ Add New Exercise</button>
             </div>
             <div class="row">
+              <button id="showWeeklyNowBtn" class="btn wfull">Show Weekly Summary</button>
+            </div>
+            <div class="row">
               <button id="toggleDebugBtn" class="btn wfull">Toggle Debug Panel</button>
             </div>
           </div>
@@ -154,6 +157,18 @@
     <p id="fpsMeter">FPS: —</p>
     <p id="storageSize">Storage: — KB</p>
     <p id="cacheSize">Cache: — KB</p>
+  </div>
+  <canvas id="confettiCanvas"></canvas>
+
+  <div id="weeklyModal" class="modal hidden">
+    <div class="modal-content">
+      <h2>Weekly Summary</h2>
+      <div id="weeklyStats"></div>
+      <canvas id="weeklyChart" width="400" height="220"></canvas>
+      <div class="modal-actions">
+        <button id="closeWeekly">Close</button>
+      </div>
+    </div>
   </div>
 </body>
 </html>

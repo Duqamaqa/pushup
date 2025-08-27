@@ -171,6 +171,14 @@
     return out;
   }
 
+  function lastSundayStr() {
+    const d = new Date();
+    const day = d.getUTCDay(); // 0=Sunday
+    const diff = d.getUTCDate() - day;
+    d.setUTCDate(diff);
+    return d.toISOString().slice(0,10);
+  }
+
   function getCompletionForDate(ex, dateStr) {
     const entry = (ex.history && ex.history[dateStr]) || { planned: 0, done: 0 };
     const planned = Number(entry.planned || 0);
@@ -212,6 +220,8 @@
       }
       exercise.remaining = Number(exercise.remaining || 0) + daily * daysPassed;
       exercise.lastAppliedDate = today;
+      // Reset per-day confetti trigger flag
+      try { exercise._confettiDoneForToday = null; } catch {}
       pruneHistory(exercise);
       invalidateStreak(exercise.id);
       return true; // changed
@@ -329,6 +339,11 @@
     historyChart: document.getElementById('historyChart'),
     closeHistory: document.getElementById('closeHistory'),
   };
+  // Weekly Summary modal elements
+  const weeklyModal = document.getElementById('weeklyModal');
+  const closeWeekly = document.getElementById('closeWeekly');
+  const weeklyStats = document.getElementById('weeklyStats');
+  const weeklyChartEl = document.getElementById('weeklyChart');
 
   let editingId = null; // null => adding new
 
@@ -389,41 +404,73 @@
       if (ex.completionThreshold == null) ex.completionThreshold = 1.0;
       if (!ex.history) ex.history = {};
 
+      // Compute today's stats
+      const today = todayStrUTC();
+      const entry = (ex.history && ex.history[today]) || { planned: 0, done: 0 };
+      const planned = Number(entry.planned || 0);
+      const done = Number(entry.done || 0);
+      const leftToday = Math.max(0, planned - done);
+      const pct = planned > 0 ? Math.min(1, done / planned) : 0;
+
       const card = document.createElement('div');
-      card.className = 'exercise-card';
+      card.className = 'ex-card';
       card.dataset.id = ex.id;
 
-      const title = document.createElement('h2');
-      setText(title, ex.exerciseName || 'Exercise');
+      // Header
+      const header = document.createElement('div');
+      header.className = 'ex-header';
+      const h3 = document.createElement('h3');
+      h3.className = 'ex-title';
+      setText(h3, ex.exerciseName || 'Exercise');
+      const editBtn = document.createElement('button');
+      editBtn.className = 'icon-btn ex-edit';
+      editBtn.title = 'Edit';
+      editBtn.setAttribute('aria-label', 'Edit');
+      editBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+          <path d="M3 17.25V21h3.75l11-11-3.75-3.75-11 11Zm14.71-9.46a1 1 0 0 0 0-1.41l-1.59-1.59a1 1 0 0 0-1.41 0l-1.13 1.13 3 3 1.13-1.13Z"/>
+        </svg>`;
+      header.append(h3, editBtn);
 
-      const streak = document.createElement('div');
-      streak.className = 'streak';
-      const sCount = getStreak(ex);
-      streak.innerHTML = `🔥 <span class="streakCount">${sCount}</span> day streak`;
-
-      const remainingWrap = document.createElement('div');
-      remainingWrap.className = 'remaining-wrap';
-      const remaining = document.createElement('div');
-      remaining.className = 'exercise-remaining';
-      setText(remaining, String(ex.remaining ?? 0));
-      remainingWrap.appendChild(remaining);
-
+      // Progress ring with remaining inside
+      const progress = document.createElement('div');
+      progress.className = 'ex-progress';
+      const ring = document.createElement('div');
+      ring.className = 'ring';
+      const initPct = (pct * 100).toFixed(2);
+      ring.style.background = `conic-gradient(var(--accent) ${initPct}%, var(--track) 0)`;
+      const ringHole = document.createElement('div');
+      ringHole.className = 'ring-hole';
+      const remainingEl = document.createElement('div');
+      remainingEl.className = 'ex-remaining';
+      setText(remainingEl, String(ex.remaining ?? 0));
+      ringHole.appendChild(remainingEl);
+      ring.appendChild(ringHole);
       const doneMsg = document.createElement('div');
       doneMsg.className = 'done-msg';
       if ((ex.remaining ?? 0) <= 0) {
         setText(doneMsg, 'Great job! ✅');
       } else {
-        setText(doneMsg, '');
         doneMsg.setAttribute('hidden', '');
       }
+      progress.append(ring, doneMsg);
 
-      // Quick steps buttons
-      const quickSteps = getQuickStepsFor(ex);
+      // Stats strip
+      const stats = document.createElement('div');
+      stats.className = 'ex-stats';
+      stats.innerHTML = `
+        <span class="chip"><span class="lbl">Daily</span><span class="val ex-daily">${planned}</span></span>
+        <span class="chip"><span class="lbl">Done</span><span class="val ex-done-today">${done}</span></span>
+        <span class="chip"><span class="lbl">Left</span><span class="val ex-left">${leftToday}</span></span>
+      `;
+
+      // Quick step buttons
       const qsWrap = document.createElement('div');
-      qsWrap.className = 'quick-steps';
+      qsWrap.className = 'ex-buttons';
+      const quickSteps = getQuickStepsFor(ex);
       quickSteps.forEach((n) => {
         const b = document.createElement('button');
-        b.className = 'primary';
+        b.className = 'btn primary';
         b.textContent = `−${n}`;
         if ((ex.remaining ?? 0) <= 0) b.disabled = true;
         b.addEventListener('click', () => {
@@ -431,56 +478,60 @@
           const idx = items.findIndex((i) => i.id === ex.id);
           if (idx === -1) return;
           const amount = Math.max(1, Number(n));
-          const today = todayStrUTC();
+          const today2 = todayStrUTC();
           const target = items[idx];
+          // Apply
           target.remaining = Math.max(0, Number(target.remaining || 0) - amount);
-          addDone(target, today, amount);
+          addDone(target, today2, amount);
           pruneHistory(target);
           invalidateStreak(target.id);
           saveDebounced(() => saveExercises(items));
+          // Recompute today's stats
+          const e = (target.history && target.history[today2]) || { planned: 0, done: 0 };
+          const p = Number(e.planned || 0);
+          const d = Number(e.done || 0);
+          const l = Math.max(0, p - d);
+          const pctNow = p > 0 ? Math.min(1, d / p) : 0;
           // minimal UI updates
-          setText(remaining, String(target.remaining || 0));
+          setText(remainingEl, String(target.remaining || 0));
+          const dailyEl = card.querySelector('.ex-daily');
+          const doneEl = card.querySelector('.ex-done-today');
+          const leftEl = card.querySelector('.ex-left');
+          if (dailyEl) setText(dailyEl, String(p));
+          if (doneEl) setText(doneEl, String(d));
+          if (leftEl) setText(leftEl, String(l));
+          const newPct = (pctNow * 100).toFixed(2);
+          ring.style.background = `conic-gradient(var(--accent) ${newPct}%, var(--track) 0)`;
           if ((target.remaining || 0) <= 0) {
             doneMsg.removeAttribute('hidden');
             setText(doneMsg, 'Great job! ✅');
+            // disable all quick buttons when done
+            Array.from(qsWrap.querySelectorAll('button')).forEach(btn => btn.disabled = true);
+            // Confetti burst once per day
+            if ((target._confettiDoneForToday || '') !== today2) {
+              try { target._confettiDoneForToday = today2; } catch {}
+              saveExercises(items);
+              try { launchConfetti(); } catch {}
+            }
           } else {
             doneMsg.setAttribute('hidden', '');
           }
-          const newStreak = getStreak(target);
-          const sEl = card.querySelector('.streakCount');
-          setText(sEl, String(newStreak));
-          remainingWrap.classList.remove('flash-success');
+          // simple flash animation hook
+          ring.classList.remove('flash-success');
           requestAnimationFrame(() => {
-            remainingWrap.classList.add('flash-success');
-            setTimeout(() => remainingWrap.classList.remove('flash-success'), 350);
+            ring.classList.add('flash-success');
+            setTimeout(() => ring.classList.remove('flash-success'), 350);
           });
         });
         qsWrap.appendChild(b);
       });
 
-      const toolbar = document.createElement('div');
-      toolbar.className = 'card-toolbar';
-      const editBtn = document.createElement('button');
-      editBtn.textContent = 'Edit';
-      const resetBtn = document.createElement('button');
-      resetBtn.className = 'danger';
-      resetBtn.textContent = 'Reset';
-      toolbar.append(editBtn, resetBtn);
-
-      card.append(title, streak, remainingWrap, doneMsg, qsWrap, toolbar);
+      card.append(header, progress, stats, qsWrap);
       containerFrag.appendChild(card);
 
       // Handlers per card
-
       editBtn.addEventListener('click', () => {
         openModal('edit', ex);
-      });
-
-      resetBtn.addEventListener('click', () => {
-        if (!confirm('Remove this exercise?')) return;
-        const items = loadExercises().filter((i) => i.id !== ex.id);
-        saveExercises(items);
-        renderDashboard();
       });
     });
     el.list.appendChild(containerFrag);
@@ -612,6 +663,7 @@
     const importBtn = $('#importBtn');
     const darkToggle = $('#darkToggle');
     const addExerciseBtn = $('#addExerciseBtn');
+    const showWeeklyNowBtn = document.getElementById('showWeeklyNowBtn');
     const exerciseSelect = $('#exerciseSelect');
     const customAmount = $('#customAmount');
     const applyCustomBtn = $('#applyCustomBtn');
@@ -631,6 +683,16 @@
     renderDashboard();
     // Initialize storage size meter
     updateStorageSize();
+
+    // Weekly Summary: show once per week (per Sunday)
+    try {
+      const lastShown = localStorage.getItem('lastWeeklyShown');
+      const currentSunday = lastSundayStr();
+      if (lastShown !== currentSunday) {
+        showWeeklySummary();
+        localStorage.setItem('lastWeeklyShown', currentSunday);
+      }
+    } catch {}
 
     // ----- Settings Modal Wiring -----
     let currentExerciseId = null;
@@ -721,6 +783,18 @@
       closeSettings();
       openModal('add');
     });
+
+    // Manual Weekly Summary trigger
+    if (showWeeklyNowBtn) {
+      showWeeklyNowBtn.addEventListener('click', async () => {
+        if (typeof loadChartJs === 'function') {
+          try { await loadChartJs(); } catch (_) {}
+        }
+        if (typeof showWeeklySummary === 'function') {
+          showWeeklySummary();
+        }
+      });
+    }
 
     // Theme toggle wiring (modal)
     darkToggle?.addEventListener('change', () => {
@@ -950,6 +1024,9 @@
       el.historyModal?.classList.add('hidden');
     });
 
+    // Weekly Summary close handler
+    closeWeekly?.addEventListener('click', () => weeklyModal?.classList.add('hidden'));
+
     // Register service worker for PWA/offline (robust, waits for full load)
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -961,6 +1038,66 @@
       }).catch(() => {});
     }
   });
+
+  // --- Weekly Summary ---
+  async function showWeeklySummary() {
+    const list = loadExercises() || [];
+    const today = todayStrUTC();
+    const days = getRecentDays(7); // already oldest first
+
+    let statsHTML = '';
+    let datasets = [];
+
+    list.forEach((ex) => {
+      let planned = 0, done = 0;
+      let doneArr = [], planArr = [];
+      days.forEach((d) => {
+        const ent = ex.history?.[d] || {};
+        planned += ent.planned || 0;
+        done += ent.done || 0;
+        planArr.push(ent.planned || 0);
+        doneArr.push(ent.done || 0);
+      });
+      const rate = planned > 0 ? Math.round((done / planned) * 100) : 0;
+      statsHTML += `<div><strong>${ex.exerciseName}:</strong> ${done}/${planned} reps (${rate}%)</div>`;
+      datasets.push({
+        label: ex.exerciseName + ' planned',
+        data: planArr,
+        backgroundColor: 'rgba(200,200,200,0.2)',
+        borderColor: 'rgba(200,200,200,0.5)',
+        type: 'line'
+      });
+      datasets.push({
+        label: ex.exerciseName + ' done',
+        data: doneArr,
+        backgroundColor: ex.color || '#36a2eb'
+      });
+    });
+
+    if (weeklyStats) weeklyStats.innerHTML = statsHTML;
+
+    await loadChartJs();
+    if (window.__weeklyChart) { try { window.__weeklyChart.destroy(); } catch {} }
+    const ctx = weeklyChartEl?.getContext('2d');
+    if (ctx && window.Chart) {
+      const cs = getComputedStyle(document.documentElement);
+      const fg = (cs.getPropertyValue('--fg') || '#111').trim();
+      window.__weeklyChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: days, datasets },
+        options: {
+          responsive: true,
+          plugins: { legend: { labels: { color: fg } } },
+          scales: {
+            x: { ticks: { color: fg } },
+            y: { ticks: { color: fg } }
+          }
+        }
+      });
+    }
+
+    weeklyModal?.classList.remove('hidden');
+  }
 
   // Expose for debugging
   window.__exerciseApp = {
@@ -977,15 +1114,69 @@
   
   // Helper to update a single card's UI in place
   function updateExerciseCardView(ex) {
-    const card = document.querySelector(`.exercise-card[data-id="${ex.id}"]`);
+    const card = document.querySelector(`.ex-card[data-id="${ex.id}"]`);
     if (!card) { renderDashboard(); return; }
-    const remainingEl = card.querySelector('.exercise-remaining');
-    setText(remainingEl, String(ex.remaining ?? 0));
+    const remainingEl = card.querySelector('.ex-remaining');
+    if (remainingEl) setText(remainingEl, String(ex.remaining ?? 0));
     const doneMsg = card.querySelector('.done-msg');
-    if ((ex.remaining ?? 0) <= 0) { doneMsg.removeAttribute('hidden'); setText(doneMsg, 'Great job! ✅'); }
-    else { doneMsg.setAttribute('hidden', ''); setText(doneMsg, ''); }
-    const sEl = card.querySelector('.streakCount');
-    const newStreak = getStreak(ex);
-    setText(sEl, String(newStreak));
+    if (doneMsg) {
+      if ((ex.remaining ?? 0) <= 0) { doneMsg.removeAttribute('hidden'); setText(doneMsg, 'Great job! ✅'); }
+      else { doneMsg.setAttribute('hidden', ''); }
+    }
+    // Update today's stats and ring percentage
+    const today = todayStrUTC();
+    const entry = (ex.history && ex.history[today]) || { planned: 0, done: 0 };
+    const p = Number(entry.planned || 0);
+    const d = Number(entry.done || 0);
+    const l = Math.max(0, p - d);
+    const pct = p > 0 ? Math.min(1, d / p) : 0;
+    const dailyEl = card.querySelector('.ex-daily');
+    const doneEl = card.querySelector('.ex-done-today');
+    const leftEl = card.querySelector('.ex-left');
+    if (dailyEl) setText(dailyEl, String(p));
+    if (doneEl) setText(doneEl, String(d));
+    if (leftEl) setText(leftEl, String(l));
+    const ring = card.querySelector('.ring');
+    if (ring) ring.style.setProperty('--pct', String(pct * 100));
+  }
+
+  // --- Confetti ---
+  const confettiCanvas = document.getElementById('confettiCanvas');
+  const ctx = confettiCanvas ? confettiCanvas.getContext('2d') : null;
+  let confettiParticles = [];
+  function resizeConfetti(){ if (!confettiCanvas) return; confettiCanvas.width = window.innerWidth; confettiCanvas.height = window.innerHeight; }
+  if (confettiCanvas) { window.addEventListener('resize', resizeConfetti); resizeConfetti(); }
+
+  function launchConfetti() {
+    if (!confettiCanvas || !ctx) return;
+    confettiParticles = [];
+    for (let i = 0; i < 120; i++) {
+      confettiParticles.push({
+        x: Math.random() * confettiCanvas.width,
+        y: Math.random() * confettiCanvas.height - confettiCanvas.height,
+        r: 4 + Math.random() * 4,
+        d: Math.random() * 5 + 2,
+        color: `hsl(${Math.random() * 360},100%,50%)`,
+        tilt: Math.random() * 10,
+        tiltAngle: Math.random() * Math.PI
+      });
+    }
+    requestAnimationFrame(updateConfetti);
+  }
+
+  function updateConfetti() {
+    if (!confettiCanvas || !ctx) return;
+    ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+    confettiParticles.forEach(p => {
+      p.y += p.d;
+      p.tiltAngle += 0.07;
+      p.x += Math.sin(p.tiltAngle);
+      ctx.beginPath();
+      ctx.fillStyle = p.color;
+      ctx.arc(p.x, p.y, p.r, 0, 2 * Math.PI);
+      ctx.fill();
+    });
+    confettiParticles = confettiParticles.filter(p => p.y < confettiCanvas.height + 20);
+    if (confettiParticles.length > 0) requestAnimationFrame(updateConfetti);
   }
 })();

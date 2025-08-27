@@ -10,23 +10,21 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <meta name="theme-color" content="#111111" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <main class="container">
-    <h1>My Exercises</h1>
-    <div id="topToolbar" class="toolbar">
-      <button id="exportBtn">Export JSON</button>
-      <button id="importBtn">Import JSON</button>
-      <label class="switch">
-        <input type="checkbox" id="darkToggle">
-        <span>Dark</span>
-      </label>
+    <div class="header-row">
+      <h1>My Exercises</h1>
+      <button id="settingsBtn" aria-label="Settings">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.14 7.14 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 14.3 2h-4.6a.5.5 0 0 0-.5.42l-.36 2.54c-.6.23-1.14.54-1.63.94l-2.39-.96a.5.5 0 0 0-.61.22L2.29 9.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.14.23.42.32.67.22l2.39-.96c.49.4 1.03.71 1.63.94l.36 2.54c.05.25.25.42.5.42h4.6c.25 0 .45-.17.5-.42l.36-2.54c.6-.23 1.14-.54 1.63-.94l2.39.96c.25.1.53.01.67-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/>
+        </svg>
+      </button>
     </div>
     <div id="exerciseListContainer" class="exercise-list"></div>
-    <button id="addExerciseBtn" class="primary large btn-block">➕ Add New Exercise</button>
   </main>
 
   <!-- Modal: Add/Edit Exercise -->
@@ -76,6 +74,86 @@
     </div>
   </div>
 
+  <!-- Settings Modal -->
+  <section id="settingsModal" class="modal hidden" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="modal-content" role="dialog">
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <button id="closeSettingsBtn" class="icon-btn" aria-label="Close">&times;</button>
+      </div>
+
+      <div id="settingsAccordion" class="accordion">
+
+        <!-- GLOBAL SECTION -->
+        <section class="acc-section" data-key="global">
+          <button class="acc-header" type="button" aria-expanded="false">
+            <span>Global</span>
+            <span class="chev" aria-hidden="true">▾</span>
+          </button>
+          <div class="acc-panel">
+            <div class="row">
+              <button id="exportBtn" class="btn wfull">Export JSON</button>
+            </div>
+            <div class="row">
+              <button id="importBtn" class="btn wfull">Import JSON</button>
+            </div>
+            <div class="row between">
+              <label for="darkToggle" class="label">Dark</label>
+              <label class="switch">
+                <input type="checkbox" id="darkToggle">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <hr>
+            <div class="row">
+              <button id="addExerciseBtn" class="btn primary wfull">+ Add New Exercise</button>
+            </div>
+            <div class="row">
+              <button id="toggleDebugBtn" class="btn wfull">Toggle Debug Panel</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- PER EXERCISE SECTION -->
+        <section class="acc-section" data-key="exercise">
+          <button class="acc-header" type="button" aria-expanded="true">
+            <span>Per Exercise</span>
+            <span class="chev" aria-hidden="true">▾</span>
+          </button>
+          <div class="acc-panel">
+            <div class="row">
+              <label for="exerciseSelect" class="label">Select exercise</label>
+              <select id="exerciseSelect" class="input wfull"></select>
+            </div>
+
+            <div class="row">
+              <label for="customAmount" class="label">Custom decrement</label>
+              <div class="hstack">
+                <input id="customAmount" class="input" type="number" min="1" placeholder="e.g., 7">
+                <button id="applyCustomBtn" class="btn">Apply</button>
+              </div>
+            </div>
+
+            <div class="row">
+              <button id="settingsAddTargetBtn" class="btn wfull">Add target again</button>
+            </div>
+
+            <div class="row">
+              <button id="settingsHistoryBtn" class="btn wfull">History</button>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </section>
+
   <script defer src="app.js"></script>
+  <div id="debugPanel" class="hidden">
+    <h3>Debug</h3>
+    <p id="fpsMeter">FPS: —</p>
+    <p id="storageSize">Storage: — KB</p>
+    <p id="cacheSize">Cache: — KB</p>
+  </div>
 </body>
 </html>

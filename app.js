@@ -9,11 +9,51 @@
 //   remaining: number,
 //   lastAppliedDate: "YYYY-MM-DD"
 // }
+// Performance checklist:
+// - Lazy Chart.js load on demand (history modal)
+// - Debounced saves for hot paths
+// - Memoized streaks per day; invalidate on changes
+// - Prune history > HISTORY_MAX_DAYS
+// - Minimal DOM updates for quick/custom actions
+// - SW caches v4 handles runtime SWR for Chart.js
 
 (function () {
   'use strict';
 
+  // Small query helper
+  const $ = (sel) => document.querySelector(sel);
+
   const LIST_KEY = 'exerciseList';
+  const HISTORY_MAX_DAYS = 366;
+  const ACC_KEY = 'settingsAccordionOpen';
+
+  // Debounced saver for hot paths
+  const saveDebounced = (() => { let t; return (fn) => { clearTimeout(t); t = setTimeout(fn, 120); }; })();
+
+  // Minimal text update helper
+  function setText(el, value) { if (el && el.textContent !== String(value)) el.textContent = String(value); }
+
+  // Streak memoization (keyed by exercise id + today)
+  const streakCache = new Map();
+  function invalidateStreak(exId) { try { streakCache.delete(`${exId}:${todayStrUTC()}`); } catch {} }
+
+  // Settings accordion state
+  function setAccOpen(key) { try { localStorage.setItem(ACC_KEY, key); } catch {} }
+  function getAccOpen() { try { return localStorage.getItem(ACC_KEY) || 'exercise'; } catch { return 'exercise'; } }
+
+  // Lazy Chart.js loader
+  let __chartJsReady = null;
+  function loadChartJs() {
+    if (__chartJsReady) return __chartJsReady;
+    __chartJsReady = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+      s.onload = () => resolve();
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+    return __chartJsReady;
+  }
 
   // ---------- Helpers: storage & date ----------
   function loadExercises() {
@@ -23,14 +63,46 @@
       const list = JSON.parse(raw);
       return Array.isArray(list) ? list : [];
     } catch (e) {
-      console.error('Failed to load exercises:', e);
+      console.warn('Failed to load exercises, using empty list:', e);
       return [];
     }
+  }
+
+  // --- Debug utilities ---
+  function updateStorageSize() {
+    try {
+      const data = JSON.stringify(loadExercises() || []);
+      const bytes = new Blob([data]).size;
+      const el = document.querySelector('#storageSize');
+      if (el) el.textContent = `Storage: ${(bytes / 1024).toFixed(1)} KB`;
+    } catch {}
+  }
+
+  async function updateCacheSize() {
+    try {
+      if (!('caches' in window)) return;
+      const keys = await caches.keys();
+      let total = 0;
+      for (const k of keys) {
+        const cache = await caches.open(k);
+        const reqs = await cache.keys();
+        for (const r of reqs) {
+          const res = await cache.match(r);
+          if (res) {
+            const buf = await res.clone().arrayBuffer();
+            total += buf.byteLength;
+          }
+        }
+      }
+      const el = document.querySelector('#cacheSize');
+      if (el) el.textContent = `Cache: ${(total / 1024).toFixed(1)} KB`;
+    } catch {}
   }
 
   function saveExercises(list) {
     try {
       localStorage.setItem(LIST_KEY, JSON.stringify(list));
+      try { updateStorageSize(); } catch {}
     } catch (e) {
       console.error('Failed to save exercises:', e);
     }
@@ -71,6 +143,21 @@
     entry.done = Number(entry.done || 0) + Math.max(0, Number(amount || 0));
   }
 
+  function pruneHistory(exercise) {
+    if (!exercise.history) return;
+    const cutoff = (() => {
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() - HISTORY_MAX_DAYS);
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    })();
+    for (const k of Object.keys(exercise.history)) {
+      if (k < cutoff) delete exercise.history[k];
+    }
+  }
+
   function getRecentDays(n) {
     const out = [];
     const d = new Date();
@@ -95,11 +182,14 @@
 
   function getStreak(ex) {
     const days = getRecentDays(365); // look back up to a year
+    const key = `${ex.id}:${todayStrUTC()}`;
+    if (streakCache.has(key)) return streakCache.get(key);
     let count = 0;
     for (let i = days.length - 1; i >= 0; i--) {
       const { completed } = getCompletionForDate(ex, days[i]);
       if (completed) count++; else break;
     }
+    streakCache.set(key, count);
     return count;
   }
 
@@ -109,18 +199,21 @@
     const daysPassed = daysBetweenUTC(last, today);
     if (daysPassed > 0) {
       // Add planned for each missed day including today
-      const base = last ? new Date(Date.UTC(...last.split('-').map((v, i) => i === 1 ? (Number(v) - 1) : Number(v)))) : null;
+      const baseParts = last ? last.split('-').map(Number) : null;
+      const baseDate = baseParts ? new Date(Date.UTC(baseParts[0], (baseParts[1] || 1) - 1, baseParts[2] || 1)) : new Date();
+      const daily = Number(exercise.dailyTarget || 0);
       for (let i = 1; i <= daysPassed; i++) {
-        const dt = base ? new Date(base) : new Date();
-        if (base) dt.setUTCDate(dt.getUTCDate() + i);
-        const y = dt.getUTCFullYear();
-        const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
-        const d = String(dt.getUTCDate()).padStart(2, '0');
-        const ds = `${y}-${m}-${d}`;
-        addPlanned(exercise, ds, Number(exercise.dailyTarget || 0));
+        const d = new Date(baseDate);
+        d.setUTCDate(d.getUTCDate() + i);
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        addPlanned(exercise, `${y}-${m}-${day}`, daily);
       }
-      exercise.remaining = Number(exercise.remaining || 0) + Number(exercise.dailyTarget || 0) * daysPassed;
+      exercise.remaining = Number(exercise.remaining || 0) + daily * daysPassed;
       exercise.lastAppliedDate = today;
+      pruneHistory(exercise);
+      invalidateStreak(exercise.id);
       return true; // changed
     }
     return false;
@@ -215,11 +308,7 @@
   // ---------- Elements ----------
   const el = {
     list: document.getElementById('exerciseListContainer'),
-    addExerciseBtn: document.getElementById('addExerciseBtn'),
-    exportBtn: document.getElementById('exportBtn'),
-    importBtn: document.getElementById('importBtn'),
-    darkToggle: document.getElementById('darkToggle'),
-    // Modal
+    // Setup/Add/Edit Modal
     modal: document.getElementById('setup-view'),
     modalTitle: document.getElementById('modal-title'),
     name: document.getElementById('exerciseName'),
@@ -293,6 +382,7 @@
   function renderDashboard() {
     const list = loadExercises();
     el.list.innerHTML = '';
+    const containerFrag = document.createDocumentFragment();
 
     list.forEach((ex) => {
       // defaults for new fields
@@ -304,7 +394,7 @@
       card.dataset.id = ex.id;
 
       const title = document.createElement('h2');
-      title.textContent = ex.exerciseName || 'Exercise';
+      setText(title, ex.exerciseName || 'Exercise');
 
       const streak = document.createElement('div');
       streak.className = 'streak';
@@ -315,15 +405,15 @@
       remainingWrap.className = 'remaining-wrap';
       const remaining = document.createElement('div');
       remaining.className = 'exercise-remaining';
-      remaining.textContent = String(ex.remaining ?? 0);
+      setText(remaining, String(ex.remaining ?? 0));
       remainingWrap.appendChild(remaining);
 
       const doneMsg = document.createElement('div');
       doneMsg.className = 'done-msg';
       if ((ex.remaining ?? 0) <= 0) {
-        doneMsg.textContent = 'Great job! ✅';
+        setText(doneMsg, 'Great job! ✅');
       } else {
-        doneMsg.textContent = '';
+        setText(doneMsg, '');
         doneMsg.setAttribute('hidden', '');
       }
 
@@ -341,64 +431,46 @@
           const idx = items.findIndex((i) => i.id === ex.id);
           if (idx === -1) return;
           const amount = Math.max(1, Number(n));
-          items[idx].remaining = Math.max(0, Number(items[idx].remaining || 0) - amount);
-          addDone(items[idx], todayStrUTC(), amount);
-          saveExercises(items);
+          const today = todayStrUTC();
+          const target = items[idx];
+          target.remaining = Math.max(0, Number(target.remaining || 0) - amount);
+          addDone(target, today, amount);
+          pruneHistory(target);
+          invalidateStreak(target.id);
+          saveDebounced(() => saveExercises(items));
+          // minimal UI updates
+          setText(remaining, String(target.remaining || 0));
+          if ((target.remaining || 0) <= 0) {
+            doneMsg.removeAttribute('hidden');
+            setText(doneMsg, 'Great job! ✅');
+          } else {
+            doneMsg.setAttribute('hidden', '');
+          }
+          const newStreak = getStreak(target);
+          const sEl = card.querySelector('.streakCount');
+          setText(sEl, String(newStreak));
           remainingWrap.classList.remove('flash-success');
-          void remainingWrap.offsetWidth;
-          remainingWrap.classList.add('flash-success');
-          setTimeout(() => remainingWrap.classList.remove('flash-success'), 350);
-          renderDashboard();
+          requestAnimationFrame(() => {
+            remainingWrap.classList.add('flash-success');
+            setTimeout(() => remainingWrap.classList.remove('flash-success'), 350);
+          });
         });
         qsWrap.appendChild(b);
       });
-      const customBtn = document.createElement('button');
-      customBtn.textContent = 'Custom';
-      if ((ex.remaining ?? 0) <= 0) customBtn.disabled = true;
-      customBtn.addEventListener('click', () => {
-        const val = prompt('Enter custom amount (positive integer):');
-        if (val == null) return;
-        const amt = parseInt(String(val).trim(), 10);
-        if (!(Number.isFinite(amt) && amt >= 1)) return;
-        const items = loadExercises();
-        const idx = items.findIndex((i) => i.id === ex.id);
-        if (idx === -1) return;
-        items[idx].remaining = Math.max(0, Number(items[idx].remaining || 0) - amt);
-        addDone(items[idx], todayStrUTC(), amt);
-        saveExercises(items);
-        renderDashboard();
-      });
-      qsWrap.appendChild(customBtn);
 
       const toolbar = document.createElement('div');
       toolbar.className = 'card-toolbar';
       const editBtn = document.createElement('button');
       editBtn.textContent = 'Edit';
-      const addBtn = document.createElement('button');
-      addBtn.textContent = 'Add target again';
       const resetBtn = document.createElement('button');
       resetBtn.className = 'danger';
       resetBtn.textContent = 'Reset';
-      const historyBtn = document.createElement('button');
-      historyBtn.textContent = 'History';
-      historyBtn.dataset.action = 'history';
-      toolbar.append(editBtn, addBtn, resetBtn, historyBtn);
+      toolbar.append(editBtn, resetBtn);
 
       card.append(title, streak, remainingWrap, doneMsg, qsWrap, toolbar);
-      el.list.appendChild(card);
+      containerFrag.appendChild(card);
 
       // Handlers per card
-
-      addBtn.addEventListener('click', () => {
-        const items = loadExercises();
-        const idx = items.findIndex((i) => i.id === ex.id);
-        if (idx === -1) return;
-        const inc = Math.max(1, Number(items[idx].dailyTarget || 0));
-        items[idx].remaining = Number(items[idx].remaining || 0) + inc;
-        addPlanned(items[idx], todayStrUTC(), inc);
-        saveExercises(items);
-        renderDashboard();
-      });
 
       editBtn.addEventListener('click', () => {
         openModal('edit', ex);
@@ -410,11 +482,8 @@
         saveExercises(items);
         renderDashboard();
       });
-
-      historyBtn.addEventListener('click', () => {
-        openHistory(ex.id);
-      });
     });
+    el.list.appendChild(containerFrag);
   }
 
   function getQuickStepsFor(ex) {
@@ -432,7 +501,7 @@
     return steps;
   }
 
-  function openHistory(exId) {
+  async function openHistory(exId) {
     const items = loadExercises();
     const ex = items.find((i) => i.id === exId);
     if (!ex) return;
@@ -481,6 +550,7 @@
       try { window.__historyChart.destroy(); } catch {}
       window.__historyChart = null;
     }
+    await loadChartJs();
     const ctx = el.historyChart?.getContext('2d');
     if (ctx && window.Chart) {
       const cs = getComputedStyle(document.documentElement);
@@ -534,7 +604,23 @@
     const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     const isDark = savedTheme ? savedTheme === 'dark' : prefersDark;
     document.documentElement.classList.toggle('dark', isDark);
-    if (el.darkToggle) el.darkToggle.checked = isDark;
+    // Settings modal elements
+    const settingsBtn = $('#settingsBtn');
+    const settingsModal = $('#settingsModal');
+    const closeSettingsBtn = $('#closeSettingsBtn');
+    const exportBtn = $('#exportBtn');
+    const importBtn = $('#importBtn');
+    const darkToggle = $('#darkToggle');
+    const addExerciseBtn = $('#addExerciseBtn');
+    const exerciseSelect = $('#exerciseSelect');
+    const customAmount = $('#customAmount');
+    const applyCustomBtn = $('#applyCustomBtn');
+    const settingsAddTargetBtn = $('#settingsAddTargetBtn');
+    const settingsHistoryBtn = $('#settingsHistoryBtn');
+    const toggleDebugBtn = $('#toggleDebugBtn');
+    const debugPanel = $('#debugPanel');
+
+    if (darkToggle) darkToggle.checked = isDark;
     // Rollover for each exercise on load
     const list = loadExercises();
     let changed = false;
@@ -543,15 +629,104 @@
     // Handle any URL quick actions before the first render
     handleURLQuickAction();
     renderDashboard();
+    // Initialize storage size meter
+    updateStorageSize();
 
-    el.addExerciseBtn?.addEventListener('click', () => openModal('add'));
+    // ----- Settings Modal Wiring -----
+    let currentExerciseId = null;
 
-    // Theme toggle wiring
-    el.darkToggle?.addEventListener('change', () => {
-      const useDark = !!el.darkToggle.checked;
+    function getExerciseById(id) {
+      const items = loadExercises();
+      const idx = items.findIndex((i) => i.id === id);
+      return { ex: idx >= 0 ? items[idx] : null, idx };
+    }
+
+    function populateExerciseSelect() {
+      if (!exerciseSelect) return;
+      const items = loadExercises();
+      exerciseSelect.innerHTML = '';
+      items.forEach((ex) => {
+        const opt = document.createElement('option');
+        opt.value = ex.id;
+        opt.textContent = ex.exerciseName || 'Exercise';
+        exerciseSelect.appendChild(opt);
+      });
+      // maintain or set default selection
+      if (items.length) {
+        if (!currentExerciseId || !items.some(i => i.id === currentExerciseId)) {
+          currentExerciseId = items[0].id;
+        }
+        exerciseSelect.value = currentExerciseId;
+      } else {
+        currentExerciseId = null;
+      }
+    }
+
+    function openSettings() {
+      populateExerciseSelect();
+      // Initialize accordion
+      const container = settingsModal?.querySelector('#settingsAccordion');
+      if (container) {
+        const sections = Array.from(container.querySelectorAll('.acc-section'));
+        const desired = getAccOpen();
+        sections.forEach((section) => {
+          const key = section.getAttribute('data-key') || '';
+          const header = section.querySelector('.acc-header');
+          const panel = section.querySelector('.acc-panel');
+          if (!header || !panel) return;
+          if (!header.dataset.wired) {
+            header.addEventListener('click', () => {
+              sections.forEach((s) => {
+                const h = s.querySelector('.acc-header');
+                s.classList.remove('open');
+                if (h) h.setAttribute('aria-expanded', 'false');
+              });
+              section.classList.add('open');
+              header.setAttribute('aria-expanded', 'true');
+              setAccOpen(key);
+            });
+            header.dataset.wired = '1';
+          }
+          if (key === desired) {
+            section.classList.add('open');
+            header.setAttribute('aria-expanded', 'true');
+          } else {
+            section.classList.remove('open');
+            header.setAttribute('aria-expanded', 'false');
+          }
+        });
+      }
+      settingsModal?.classList.remove('hidden');
+    }
+    function closeSettings() {
+      settingsModal?.classList.add('hidden');
+    }
+
+    settingsBtn?.addEventListener('click', openSettings);
+    closeSettingsBtn?.addEventListener('click', closeSettings);
+    exerciseSelect?.addEventListener('change', (e) => {
+      currentExerciseId = e.target.value || null;
+    });
+
+    // Close on Escape and overlay click
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !settingsModal?.classList.contains('hidden')) closeSettings();
+    });
+    settingsModal?.addEventListener('click', (e) => {
+      if (e.target === settingsModal) closeSettings();
+    });
+
+    // Global actions in modal
+    addExerciseBtn?.addEventListener('click', () => {
+      closeSettings();
+      openModal('add');
+    });
+
+    // Theme toggle wiring (modal)
+    darkToggle?.addEventListener('change', () => {
+      const useDark = !!darkToggle.checked;
       document.documentElement.classList.toggle('dark', useDark);
       localStorage.setItem('theme', useDark ? 'dark' : 'light');
-      // Update chart theme if open
       if (window.__historyChart) {
         const cs = getComputedStyle(document.documentElement);
         const fg = (cs.getPropertyValue('--fg') || '#111').trim();
@@ -569,6 +744,128 @@
           window.__historyChart.update();
         } catch {}
       }
+    });
+
+    // Debug: FPS meter
+    (function () {
+      const fpsEl = document.querySelector('#fpsMeter');
+      if (!fpsEl) return;
+      let last = performance.now();
+      let frames = 0;
+      function loop(ts) {
+        frames++;
+        if (ts - last >= 1000) {
+          const fps = frames;
+          frames = 0;
+          last = ts;
+          fpsEl.textContent = `FPS: ${fps}`;
+        }
+        requestAnimationFrame(loop);
+      }
+      requestAnimationFrame(loop);
+    })();
+
+    // Debug: Toggle panel and refresh cache/storage sizes when opened
+    toggleDebugBtn?.addEventListener('click', () => {
+      if (!debugPanel) return;
+      debugPanel.classList.toggle('hidden');
+      const opened = !debugPanel.classList.contains('hidden');
+      if (opened) {
+        updateStorageSize();
+        updateCacheSize();
+      }
+    });
+
+    exportBtn?.addEventListener('click', () => {
+      const data = JSON.stringify(loadExercises(), null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `exercise-export-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 0);
+    });
+
+    importBtn?.addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json,.json';
+      input.addEventListener('change', () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const parsed = JSON.parse(String(reader.result || 'null'));
+            if (!Array.isArray(parsed)) throw new Error('Invalid format: expected array');
+            const norm = parsed.map((ex) => ({
+              id: String(ex.id || uuid()),
+              exerciseName: String(ex.exerciseName || 'Exercise'),
+              dailyTarget: Math.max(1, Number(ex.dailyTarget || 1)),
+              decrementStep: Math.max(1, Number(ex.decrementStep || 1)),
+              remaining: Math.max(0, Number(ex.remaining || 0)),
+              lastAppliedDate: ex.lastAppliedDate || todayStrUTC(),
+              history: ex.history && typeof ex.history === 'object' ? ex.history : {},
+              completionThreshold: Number(ex.completionThreshold ?? 1.0),
+              quickSteps: Array.isArray(ex.quickSteps) ? ex.quickSteps.map(Number) : undefined,
+            }));
+            saveExercises(norm);
+            renderDashboard();
+            showToast('Import successful');
+            closeSettings();
+          } catch (e) {
+            alert('Failed to import JSON: ' + e.message);
+          }
+        };
+        reader.readAsText(file);
+      });
+      input.click();
+    });
+
+    // Exercise actions in modal
+    applyCustomBtn?.addEventListener('click', () => {
+      const amt = parseInt(String(customAmount?.value || '').trim(), 10);
+      if (!(Number.isFinite(amt) && amt >= 1)) return;
+      const items = loadExercises();
+      if (!items.length || !currentExerciseId) return;
+      const idx = items.findIndex(i => i.id === currentExerciseId);
+      if (idx < 0) return;
+      const ex = items[idx];
+      const today = todayStrUTC();
+      applyDailyRollover(ex);
+      ex.remaining = Math.max(0, Number(ex.remaining || 0) - amt);
+      addDone(ex, today, amt);
+      pruneHistory(ex);
+      invalidateStreak(ex.id);
+      saveDebounced(() => saveExercises(items));
+      updateExerciseCardView(ex);
+      showToast(`−${amt} logged`);
+    });
+
+    settingsAddTargetBtn?.addEventListener('click', () => {
+      const items = loadExercises();
+      if (!items.length || !currentExerciseId) return;
+      const idx = items.findIndex(i => i.id === currentExerciseId);
+      if (idx < 0) return;
+      const ex = items[idx];
+      const today = todayStrUTC();
+      applyDailyRollover(ex);
+      const inc = Math.max(1, Number(ex.dailyTarget || 0));
+      ex.remaining = Number(ex.remaining || 0) + inc;
+      addPlanned(ex, today, inc);
+      pruneHistory(ex);
+      invalidateStreak(ex.id);
+      saveDebounced(() => saveExercises(items));
+      updateExerciseCardView(ex);
+      showToast(`+${inc} added`);
+    });
+
+    settingsHistoryBtn?.addEventListener('click', () => {
+      if (!currentExerciseId) return;
+      closeSettings();
+      openHistory(currentExerciseId);
     });
 
     el.cancelBtn?.addEventListener('click', closeModal);
@@ -639,6 +936,7 @@
           // update quick steps
           if (qs.length) listNow[idx].quickSteps = Array.from(new Set(qs)).sort((a,b)=>a-b).slice(0,4);
           else listNow[idx].quickSteps = getQuickStepsFor(listNow[idx]);
+          invalidateStreak(listNow[idx].id);
         }
       }
       saveExercises(listNow);
@@ -646,54 +944,7 @@
       renderDashboard();
     });
 
-    // Export / Import wiring
-    el.exportBtn?.addEventListener('click', () => {
-      const data = JSON.stringify(loadExercises(), null, 2);
-      const blob = new Blob([data], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `exercise-export-${Date.now()}.json`;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 0);
-    });
-
-    el.importBtn?.addEventListener('click', () => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'application/json,.json';
-      input.addEventListener('change', () => {
-        const file = input.files && input.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = () => {
-          try {
-            const parsed = JSON.parse(String(reader.result || 'null'));
-            if (!Array.isArray(parsed)) throw new Error('Invalid format: expected array');
-            // Basic validation and normalization
-            const norm = parsed.map((ex) => ({
-              id: String(ex.id || uuid()),
-              exerciseName: String(ex.exerciseName || 'Exercise'),
-              dailyTarget: Math.max(1, Number(ex.dailyTarget || 1)),
-              decrementStep: Math.max(1, Number(ex.decrementStep || 1)),
-              remaining: Math.max(0, Number(ex.remaining || 0)),
-              lastAppliedDate: ex.lastAppliedDate || todayStrUTC(),
-              history: ex.history && typeof ex.history === 'object' ? ex.history : {},
-              completionThreshold: Number(ex.completionThreshold ?? 1.0),
-              quickSteps: Array.isArray(ex.quickSteps) ? ex.quickSteps.map(Number) : undefined,
-            }));
-            saveExercises(norm);
-            renderDashboard();
-            showToast('Import successful');
-          } catch (e) {
-            alert('Failed to import JSON: ' + e.message);
-          }
-        };
-        reader.readAsText(file);
-      });
-      input.click();
-    });
+    // (Export/Import wired via settings modal)
 
     el.closeHistory?.addEventListener('click', () => {
       el.historyModal?.classList.add('hidden');
@@ -704,6 +955,10 @@
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js').catch(console.error);
       });
+      // Update cache size when SW is ready
+      navigator.serviceWorker.ready.then(() => {
+        updateCacheSize();
+      }).catch(() => {});
     }
   });
 
@@ -719,4 +974,18 @@
     addDone,
     getRecentDays,
   };
+  
+  // Helper to update a single card's UI in place
+  function updateExerciseCardView(ex) {
+    const card = document.querySelector(`.exercise-card[data-id="${ex.id}"]`);
+    if (!card) { renderDashboard(); return; }
+    const remainingEl = card.querySelector('.exercise-remaining');
+    setText(remainingEl, String(ex.remaining ?? 0));
+    const doneMsg = card.querySelector('.done-msg');
+    if ((ex.remaining ?? 0) <= 0) { doneMsg.removeAttribute('hidden'); setText(doneMsg, 'Great job! ✅'); }
+    else { doneMsg.setAttribute('hidden', ''); setText(doneMsg, ''); }
+    const sEl = card.querySelector('.streakCount');
+    const newStreak = getStreak(ex);
+    setText(sEl, String(newStreak));
+  }
 })();

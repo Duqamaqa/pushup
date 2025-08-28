@@ -299,11 +299,11 @@ button.large {
 .modal {
   position: fixed;
   inset: 0;
-  display: grid;
-  place-items: center;
   background: var(--backdrop);
+  display: none; /* hidden by default */
   padding: 16px;
 }
+.modal:not(.hidden) { display: grid; place-items: center; }
 .hidden { display: none !important; }
 .modal-card {
   width: 100%;
@@ -672,3 +672,27 @@ button.large {
   color: var(--fg);
   line-height: 1.2;
 }
+
+/* --- Settings modal: scrollable content + iOS-friendly viewport --- */
+/* Scrollable modal content */
+#settingsModal .modal-content {
+  width: min(640px, 92vw);
+  max-height: calc(100dvh - 10vh);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 16px;
+}
+
+/* Make accordion panels use content height but allow container to scroll */
+#settingsModal .acc-panel {
+  max-height: none;
+  opacity: 1;
+  padding: 0 16px 14px;
+}
+#settingsModal .acc-section { overflow: visible; }
+
+/* Optional: reduce large inner margins to fit more on small screens */
+#settingsModal .row { margin-top: 10px; }
+
+/* Prevent background page from scrolling while modal is open */
+body.no-scroll { overflow: hidden; }

@@ -1291,40 +1291,46 @@
       }
     }
 
-    function openSettings() {
-      populateExerciseSelect();
-      // Initialize accordion
+    // Settings accordion init
+    function initSettingsAccordion() {
       const container = settingsModal?.querySelector('#settingsAccordion');
-      if (container) {
-        const sections = Array.from(container.querySelectorAll('.acc-section'));
-        const desired = getAccOpen();
-        sections.forEach((section) => {
-          const key = section.getAttribute('data-key') || '';
-          const header = section.querySelector('.acc-header');
-          const panel = section.querySelector('.acc-panel');
-          if (!header || !panel) return;
-          if (!header.dataset.wired) {
-            header.addEventListener('click', () => {
-              sections.forEach((s) => {
-                const h = s.querySelector('.acc-header');
-                s.classList.remove('open');
-                if (h) h.setAttribute('aria-expanded', 'false');
-              });
-              section.classList.add('open');
-              header.setAttribute('aria-expanded', 'true');
-              setAccOpen(key);
+      if (!container) return;
+      const sections = Array.from(container.querySelectorAll('.acc-section'));
+      const desired = getAccOpen();
+      sections.forEach((section) => {
+        const key = section.getAttribute('data-key') || '';
+        const header = section.querySelector('.acc-header');
+        const panel = section.querySelector('.acc-panel');
+        if (!header || !panel) return;
+        if (!header.dataset.wired) {
+          header.addEventListener('click', () => {
+            sections.forEach((s) => {
+              const h = s.querySelector('.acc-header');
+              s.classList.remove('open');
+              if (h) h.setAttribute('aria-expanded', 'false');
             });
-            header.dataset.wired = '1';
-          }
-          if (key === desired) {
             section.classList.add('open');
             header.setAttribute('aria-expanded', 'true');
-          } else {
-            section.classList.remove('open');
-            header.setAttribute('aria-expanded', 'false');
-          }
-        });
-      }
+            setAccOpen(key);
+          });
+          header.dataset.wired = '1';
+        }
+        if (key === desired) {
+          section.classList.add('open');
+          header.setAttribute('aria-expanded', 'true');
+        } else {
+          section.classList.remove('open');
+          header.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+
+    // Helpers
+    function openSettingsModal() {
+      const m = document.getElementById('settingsModal');
+      if (!m) return;
+      populateExerciseSelect?.();
+      initSettingsAccordion?.();
       // Prefill leaderboard config and toggle leaderboard button
       try {
         const cfg = getLbConfig();
@@ -1333,29 +1339,39 @@
         if (lbKey) lbKey.value = cfg.key || '';
         if (openLeaderboardBtn) openLeaderboardBtn.style.display = (cfg.url && cfg.key && cfg.name) ? '' : 'none';
       } catch {}
-      settingsModal?.classList.remove('hidden');
+      m.classList.remove('hidden');
+      document.body.classList.add('no-scroll');
+      const mc = m.querySelector('.modal-content');
+      if (mc) mc.scrollTop = 0;
     }
-    function closeSettings() {
-      settingsModal?.classList.add('hidden');
+    function closeSettingsModal() {
+      const m = document.getElementById('settingsModal');
+      if (!m) return;
+      m.classList.add('hidden');
+      document.body.classList.remove('no-scroll');
     }
 
-    settingsBtn?.addEventListener('click', openSettings);
-    closeSettingsBtn?.addEventListener('click', closeSettings);
+    // Back-compat wrappers
+    function openSettings() { openSettingsModal(); }
+    function closeSettings() { closeSettingsModal(); }
+
+    settingsBtn?.addEventListener('click', openSettingsModal);
+    closeSettingsBtn?.addEventListener('click', closeSettingsModal);
     exerciseSelect?.addEventListener('change', (e) => {
       currentExerciseId = e.target.value || null;
     });
 
     // Close on Escape and overlay click
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !settingsModal?.classList.contains('hidden')) closeSettings();
+      if (e.key === 'Escape' && !settingsModal?.classList.contains('hidden')) closeSettingsModal();
     });
     settingsModal?.addEventListener('click', (e) => {
-      if (e.target === settingsModal) closeSettings();
+      if (e.target === settingsModal) closeSettingsModal();
     });
 
     // Global actions in modal
     addExerciseBtn?.addEventListener('click', () => {
-      closeSettings();
+      closeSettingsModal();
       openModal('add');
     });
 
@@ -1476,7 +1492,7 @@
             saveExercises(norm);
             renderDashboard();
             showToast('Import successful');
-            closeSettings();
+            closeSettingsModal();
           } catch (e) {
             alert('Failed to import JSON: ' + e.message);
           }
@@ -1528,7 +1544,7 @@
 
     settingsHistoryBtn?.addEventListener('click', () => {
       if (!currentExerciseId) return;
-      closeSettings();
+      closeSettingsModal();
       openHistory(currentExerciseId);
     });
 

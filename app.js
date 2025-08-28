@@ -20,12 +20,77 @@
 (function () {
   'use strict';
 
-  // Small query helper
+  // Small query helpers
   const $ = (sel) => document.querySelector(sel);
+  const qs = (root, sel) => (root && root.querySelector) ? root.querySelector(sel) : null;
 
   const LIST_KEY = 'exerciseList';
   const HISTORY_MAX_DAYS = 366;
   const ACC_KEY = 'settingsAccordionOpen';
+  // Optional Supabase (configured via Settings)
+  const SUPABASE_URL = '';
+  const SUPABASE_ANON = '';
+  const EX_TEMPLATES = [
+    { name:'Push-ups', unit:'reps', daily:50, steps:[10,20] },
+    { name:'Squats',   unit:'reps', daily:60, steps:[10,20] },
+    { name:'Plank',    unit:'min',  daily:5,  steps:[1] },
+    { name:'Running',  unit:'km',   daily:3,  steps:[1] },
+  ];
+
+  // Daily quotes/tips (stable per day)
+  const QUOTES = [
+    'Small steps add up. Keep going.',
+    'Form first, speed second.',
+    'Consistency beats intensity.',
+    'Hydrate and breathe between sets.',
+    'Perfect is the enemy of done.',
+    'You only improve what you track.',
+    'A little today beats a lot someday.',
+    'Warm up. Cool down. Recover well.',
+    'Focus on quality reps.',
+    'Set the next micro‑goal now.',
+    'Show up, even for five minutes.',
+    'Don’t break the chain today.',
+    'Your future self thanks you.',
+    'Make it easy to start.',
+    'Celebrate small wins.',
+    'Just one more small push.',
+    'Start light and progress steadily.',
+    'Stack habits: pair with a routine.',
+  ];
+
+  function dailyQuote(seedStr) { // stable per day
+    const s = (String(seedStr || '') + todayStrUTC())
+      .split('')
+      .reduce((a, c) => a + c.charCodeAt(0), 0);
+    return QUOTES[s % QUOTES.length];
+  }
+
+  // Achievements definitions
+  const ACHIEVEMENTS = [
+    { id: 'first_day', title: 'First Day', rule: (ex) => getLifetimeDone(ex) >= 1 },
+    { id: 'week100', title: 'Century Week', rule: (ex) => sumLastNDone(ex, 7) >= 100 },
+    { id: 'streak3', title: '3-Day Streak', rule: (ex) => getStreak(ex) >= 3 },
+    { id: 'streak7', title: '7-Day Streak', rule: (ex) => getStreak(ex) >= 7 },
+    { id: 'total500', title: 'Total 500', rule: (ex) => getLifetimeDone(ex) >= 500 },
+    { id: 'goal100', title: 'Perfect Days ×3', rule: (ex) => countPerfectDays(ex) >= 3 },
+  ];
+
+  function ensureBadges(ex){ if (!Array.isArray(ex.badges)) ex.badges = []; return ex.badges; }
+  function getAchievementTitle(id){ const a = ACHIEVEMENTS.find(x => x.id === id); return a ? a.title : id; }
+  function sumLastNDone(ex, n){ const days = getRecentDays(n); let s = 0; for (const d of days) s += Number(ex.history?.[d]?.done || 0); return s; }
+  function getLifetimeDone(ex){ let s = 0; if (ex?.history) { for (const k in ex.history){ s += Number(ex.history[k]?.done || 0); } } return s; }
+  function countPerfectDays(ex){ let c = 0; if (ex?.history){ for (const k in ex.history){ const ent = ex.history[k] || {}; const p = Number(ent.planned||0); const d = Number(ent.done||0); if (p>0 && d>=p) c++; } } return c; }
+  function checkAchievements(ex){
+    ensureBadges(ex);
+    let awarded = false;
+    for (const a of ACHIEVEMENTS){
+      try {
+        if (!ex.badges.includes(a.id) && a.rule(ex)) { ex.badges.push(a.id); awarded = true; }
+      } catch {}
+    }
+    return awarded;
+  }
 
   // Debounced saver for hot paths
   const saveDebounced = (() => { let t; return (fn) => { clearTimeout(t); t = setTimeout(fn, 120); }; })();
@@ -35,7 +100,11 @@
 
   // Streak memoization (keyed by exercise id + today)
   const streakCache = new Map();
-  function invalidateStreak(exId) { try { streakCache.delete(`${exId}:${todayStrUTC()}`); } catch {} }
+  const longestStreakCache = new Map();
+  function invalidateStreak(exId) {
+    try { streakCache.delete(`${exId}:${todayStrUTC()}`); } catch {}
+    try { longestStreakCache.delete(exId); } catch {}
+  }
 
   // Settings accordion state
   function setAccOpen(key) { try { localStorage.setItem(ACC_KEY, key); } catch {} }
@@ -201,6 +270,43 @@
     return count;
   }
 
+  // Personal bests
+  function maxDayDone(ex) {
+    let bestDate = null;
+    let best = 0;
+    if (ex && ex.history) {
+      for (const k in ex.history) {
+        const v = Number(ex.history[k]?.done || 0);
+        if (v > best) { best = v; bestDate = k; }
+      }
+    }
+    return { date: bestDate || '—', value: best };
+  }
+
+  function longestStreak(ex) {
+    if (!ex || !ex.history) return 0;
+    if (longestStreakCache.has(ex.id)) return longestStreakCache.get(ex.id);
+    const keys = Object.keys(ex.history).sort(); // YYYY-MM-DD lex sort is chronological
+    let best = 0, cur = 0, prev = null;
+    for (const k of keys) {
+      const { completed } = getCompletionForDate(ex, k);
+      if (prev) {
+        const gap = daysBetweenUTC(prev, k);
+        if (gap === 1) {
+          cur = completed ? (cur + 1) : 0;
+        } else {
+          cur = completed ? 1 : 0;
+        }
+      } else {
+        cur = completed ? 1 : 0;
+      }
+      if (cur > best) best = cur;
+      prev = k;
+    }
+    longestStreakCache.set(ex.id, best);
+    return best;
+  }
+
   function applyDailyRollover(exercise) {
     const today = todayStrUTC();
     const last = exercise.lastAppliedDate;
@@ -296,11 +402,11 @@
     let toastMsg = null;
     if (decStr) {
       const dec = Math.max(1, parseInt(decStr, 10) || 0);
-      actOn((s) => { s.remaining -= dec; addDone(s, todayStrUTC(), dec); });
+      actOn((s) => { s.remaining -= dec; addDone(s, todayStrUTC(), dec); checkAchievements(s); });
       toastMsg = `Logged −${dec}`;
     } else if (addStr) {
       const times = Math.max(1, parseInt(addStr, 10) || 0);
-      actOn((s) => { const inc = (Number(s.dailyTarget || 0) * times); s.remaining += inc; addPlanned(s, todayStrUTC(), inc); });
+      actOn((s) => { const inc = (Number(s.dailyTarget || 0) * times); s.remaining += inc; addPlanned(s, todayStrUTC(), inc); checkAchievements(s); });
       toastMsg = `Added +${times}× target`;
     }
 
@@ -327,6 +433,8 @@
     streakThreshold: document.getElementById('streakThreshold'),
     quickStepsInput: document.getElementById('quickStepsInput'),
     weeklyGoalInput: document.getElementById('weeklyGoalInput'),
+    unitSel: document.getElementById('unitSel'),
+    templateRow: document.getElementById('templateRow'),
     errName: document.getElementById('exerciseNameError'),
     errDaily: document.getElementById('dailyTargetError'),
     errStep: document.getElementById('decrementStepError'),
@@ -346,18 +454,252 @@
   const weeklyStats = document.getElementById('weeklyStats');
   const weeklyChartEl = document.getElementById('weeklyChart');
   const sparkTooltip = document.getElementById('sparkTooltip');
+  const HISTORY_TAB_KEY = 'historyTab';
+  const shareCardBtn = document.getElementById('shareCardBtn');
+  const leaderboardModal = document.getElementById('leaderboardModal');
+  const leaderboardList = document.getElementById('leaderboardList');
+
+  async function renderHistoryChart(mode, ex) {
+    if (window.__historyChart) {
+      try { window.__historyChart.destroy(); } catch {}
+      window.__historyChart = null;
+    }
+    try { await loadChartJs(); } catch {}
+    const ctx = el.historyChart?.getContext('2d');
+    if (!ctx || !window.Chart) return;
+    const cs = getComputedStyle(document.documentElement);
+    const fg = (cs.getPropertyValue('--fg') || '#111').trim();
+    const grid = (cs.getPropertyValue('--border') || '#ddd').trim();
+
+    if (mode === 'trends') {
+      const days = getRecentDays(30);
+      const done = days.map(d => Number((ex.history?.[d]?.done) || 0));
+      const planned = days.map(d => Number((ex.history?.[d]?.planned) || 0));
+      window.__historyChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: days,
+          datasets: [
+            { label: 'Done', data: done, backgroundColor: 'rgba(16, 185, 129, 0.6)', borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1 },
+            { label: 'Planned', data: planned, backgroundColor: 'rgba(59, 130, 246, 0.35)', borderColor: 'rgba(59, 130, 246, 1)', borderWidth: 1 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { x: { ticks: { color: fg }, grid: { color: grid } }, y: { beginAtZero: true, ticks: { color: fg }, grid: { color: grid } } },
+          plugins: { legend: { position: 'top', labels: { color: fg } } }
+        }
+      });
+    } else {
+      const days = getRecentDays(14);
+      const planned = days.map(d => Number((ex.history?.[d]?.planned) || 0));
+      const done = days.map(d => Number((ex.history?.[d]?.done) || 0));
+      window.__historyChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: days,
+          datasets: [
+            { label: 'Planned', data: planned, backgroundColor: 'rgba(59, 130, 246, 0.5)', borderColor: 'rgba(59, 130, 246, 1)', borderWidth: 1 },
+            { label: 'Done', data: done, backgroundColor: 'rgba(16, 185, 129, 0.5)', borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { x: { ticks: { color: fg }, grid: { color: grid } }, y: { beginAtZero: true, ticks: { color: fg }, grid: { color: grid } } },
+          plugins: { legend: { position: 'top', labels: { color: fg } } }
+        }
+      });
+    }
+  }
+
+  // --- Shareable Progress Card ---
+  function renderShareCard(ex) {
+    try {
+      const unit = ex.unit || 'reps';
+      const days7 = getRecentDays(7); // oldest -> newest
+      const doneArr = days7.map(d => Number(ex.history?.[d]?.done || 0));
+      const total7 = doneArr.reduce((a,b)=>a+b,0);
+      const streakNow = getStreak(ex);
+      const dateRange = `${days7[0]} – ${days7[days7.length-1]}`;
+
+      const cs = getComputedStyle(document.documentElement);
+      const fg = (cs.getPropertyValue('--fg') || '#111').trim();
+      const bg = (cs.getPropertyValue('--card') || '#fff').trim();
+      const muted = (cs.getPropertyValue('--muted') || '#888').trim();
+      const accent = (cs.getPropertyValue('--accent') || '#4c8dff').trim();
+
+      const W = 1080, H = 1080;
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      // Background
+      ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
+
+      // Title
+      ctx.fillStyle = fg;
+      ctx.font = 'bold 72px Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText(ex.exerciseName || 'Exercise', 80, 150);
+
+      // Totals and streak
+      ctx.font = '600 40px Inter, system-ui, -apple-system';
+      ctx.fillStyle = muted; ctx.fillText('Last 7 Days', 80, 210);
+      ctx.fillStyle = fg; ctx.font = '800 90px Inter, system-ui, -apple-system';
+      ctx.fillText(`${total7} ${unit}`, 80, 300);
+      ctx.fillStyle = muted; ctx.font = '600 40px Inter, system-ui, -apple-system';
+      ctx.fillText('Current Streak', 80, 360);
+      ctx.fillStyle = fg; ctx.font = '800 72px Inter, system-ui, -apple-system';
+      ctx.fillText(`${streakNow} day${streakNow===1?'':'s'}`, 80, 430);
+
+      // Simple 7-day bar chart
+      const chartX = 80, chartY = 520, chartW = W - 160, chartH = 420;
+      const barGap = 24;
+      const n = doneArr.length;
+      const barW = (chartW - barGap * (n - 1)) / n;
+      const maxVal = Math.max(1, ...doneArr);
+      // axes baseline
+      ctx.fillStyle = 'transparent';
+      ctx.strokeStyle = muted; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(chartX, chartY + chartH); ctx.lineTo(chartX + chartW, chartY + chartH); ctx.stroke();
+      // bars
+      for (let i = 0; i < n; i++) {
+        const v = doneArr[i];
+        const h = Math.round((v / maxVal) * (chartH - 20));
+        const x = chartX + i * (barW + barGap);
+        const y = chartY + chartH - h;
+        // bar background
+        ctx.fillStyle = 'rgba(127,127,127,0.12)';
+        ctx.fillRect(x, chartY + 20, barW, chartH - 20);
+        // bar fill
+        ctx.fillStyle = accent;
+        ctx.fillRect(x, y, barW, h);
+      }
+      // day labels (last 2 chars of date, or weekday initial)
+      ctx.fillStyle = muted; ctx.font = 'bold 28px Inter, system-ui'; ctx.textAlign = 'center';
+      for (let i = 0; i < n; i++) {
+        const label = days7[i].slice(5); // MM-DD
+        const x = chartX + i * (barW + barGap) + barW/2;
+        ctx.fillText(label, x, chartY + chartH + 40);
+      }
+
+      // Date range footer
+      ctx.fillStyle = muted; ctx.font = '600 34px Inter, system-ui'; ctx.textAlign = 'left';
+      ctx.fillText(dateRange, 80, H - 80);
+
+      // Export
+      const url = canvas.toDataURL('image/png');
+      const fileName = `Progress-${(ex.exerciseName||'Exercise').replace(/\s+/g,'_')}-${todayStrUTC()}.png`;
+      const a = document.createElement('a'); a.href = url; a.download = fileName;
+      document.body.appendChild(a); a.click(); a.remove();
+      // Fallback open new tab
+      try { window.open(url, '_blank'); } catch {}
+    } catch (e) {
+      console.error('Share card render failed:', e);
+      showToast('Could not create image');
+    }
+  }
+
+  // --- Leaderboard helpers ---
+  function getLbConfig() {
+    try {
+      const name = localStorage.getItem('lbName') || '';
+      const url = (localStorage.getItem('lbUrl') || SUPABASE_URL || '').trim();
+      const key = (localStorage.getItem('lbKey') || SUPABASE_ANON || '').trim();
+      return { name, url, key };
+    } catch { return { name:'', url: SUPABASE_URL || '', key: SUPABASE_ANON || '' }; }
+  }
+  function supaConfigured() {
+    const { url, key, name } = getLbConfig();
+    return !!(url && key && name);
+  }
+  function computeWeeklyTotalAll() {
+    const items = loadExercises() || [];
+    let total = 0;
+    items.forEach(ex => { total += sumLast7Done(ex); });
+    return total;
+  }
+  async function upsertScore(name, total) {
+    const { url, key } = getLbConfig();
+    if (!url || !key) return;
+    const body = [{ name, total, week: lastSundayStr() }];
+    try {
+      await fetch(`${url}/rest/v1/leaderboard`, {
+        method: 'POST',
+        headers: {
+          'apikey': key,
+          'Authorization': 'Bearer ' + key,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify(body)
+      });
+    } catch (e) {
+      console.warn('upsertScore failed', e);
+    }
+  }
+  async function loadLeaderboard() {
+    const { url, key } = getLbConfig();
+    if (!url || !key) return [];
+    const week = lastSundayStr();
+    try {
+      const resp = await fetch(`${url}/rest/v1/leaderboard?select=*&week=eq.${week}&order=total.desc&limit=10`, {
+        headers: { 'apikey': key, 'Authorization': 'Bearer ' + key }
+      });
+      if (!resp.ok) return [];
+      return await resp.json();
+    } catch (e) {
+      console.warn('loadLeaderboard failed', e);
+      return [];
+    }
+  }
 
   let editingId = null; // null => adding new
 
   function openModal(mode, exercise) {
     editingId = exercise ? exercise.id : null;
     el.modalTitle.textContent = mode === 'edit' ? 'Edit Exercise' : 'Add Exercise';
+    // Templates: only show for Add mode
+    if (el.templateRow) {
+      el.templateRow.innerHTML = '';
+      el.templateRow.hidden = mode !== 'add';
+      if (mode === 'add') {
+        const fillFrom = (tpl) => {
+          el.name.value = tpl?.name || '';
+          el.daily.value = tpl?.daily != null ? String(tpl.daily) : '';
+          if (el.unitSel) el.unitSel.value = tpl?.unit || 'reps';
+          if (el.quickStepsInput) el.quickStepsInput.value = Array.isArray(tpl?.steps) ? tpl.steps.join(',') : '';
+          clearErrors();
+        };
+        EX_TEMPLATES.forEach((tpl) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'tpl-btn';
+          b.textContent = tpl.name;
+          b.addEventListener('click', () => fillFrom(tpl));
+          el.templateRow.appendChild(b);
+        });
+        const custom = document.createElement('button');
+        custom.type = 'button';
+        custom.className = 'tpl-btn';
+        custom.textContent = 'Custom';
+        custom.addEventListener('click', () => fillFrom(null));
+        el.templateRow.appendChild(custom);
+      }
+    }
     el.name.value = exercise ? exercise.exerciseName : '';
     el.daily.value = exercise ? String(exercise.dailyTarget) : '';
     el.step.value = exercise ? String(exercise.decrementStep) : '';
     if (el.streakThreshold) {
       const thr = exercise ? (Number(exercise.completionThreshold ?? 1.0)) : 1.0;
       el.streakThreshold.value = String(Math.min(1, Math.max(0.5, Number.isFinite(thr) ? thr : 1.0)));
+    }
+    if (el.unitSel) {
+      el.unitSel.value = (exercise && exercise.unit) ? exercise.unit : 'reps';
     }
     if (el.quickStepsInput) {
       const qs = Array.isArray(exercise?.quickSteps) ? exercise.quickSteps : [];
@@ -381,6 +723,7 @@
     if (el.streakThreshold) el.streakThreshold.value = '';
     if (el.quickStepsInput) el.quickStepsInput.value = '';
     if (el.weeklyGoalInput) el.weeklyGoalInput.value = '';
+    if (el.unitSel) el.unitSel.value = 'reps';
     clearErrors();
   }
 
@@ -411,6 +754,7 @@
       // defaults for new fields
       if (ex.completionThreshold == null) ex.completionThreshold = 1.0;
       if (!ex.history) ex.history = {};
+      if (!ex.unit) ex.unit = 'reps';
       ensureWeeklyGoal(ex);
 
       // Compute today's stats
@@ -431,6 +775,15 @@
       const h3 = document.createElement('h3');
       h3.className = 'ex-title';
       setText(h3, ex.exerciseName || 'Exercise');
+      // Optional PB pill
+      const pbMeta = maxDayDone(ex);
+      if (pbMeta.value > 0) {
+        const pbPill = document.createElement('span');
+        pbPill.className = 'pill ex-pb-pill';
+        pbPill.textContent = `PB ${pbMeta.value}`;
+        h3.appendChild(document.createTextNode(' '));
+        h3.appendChild(pbPill);
+      }
       const editBtn = document.createElement('button');
       editBtn.className = 'icon-btn ex-edit';
       editBtn.title = 'Edit';
@@ -464,13 +817,34 @@
       }
       progress.append(ring, doneMsg);
 
+      // Daily tip/quote under the big number
+      const tipEl = document.createElement('div');
+      tipEl.className = 'ex-tip';
+      tipEl.id = `tip-${ex.id}`;
+      setText(tipEl, dailyQuote(ex.exerciseName || ''));
+
+      // Badges row (tiny)
+      const badgesRow = document.createElement('div');
+      badgesRow.className = 'ex-badges';
+      const earned = Array.isArray(ex.badges) ? ex.badges.slice(0,3) : [];
+      earned.forEach((id) => {
+        const s = document.createElement('span');
+        s.className = 'badge';
+        s.title = getAchievementTitle(id);
+        s.textContent = getAchievementTitle(id);
+        badgesRow.appendChild(s);
+      });
+
       // Stats strip
       const stats = document.createElement('div');
       stats.className = 'ex-stats';
+      const over = Math.max(0, done - planned);
+      const unit = ex.unit || 'reps';
       stats.innerHTML = `
-        <span class="chip"><span class="lbl">Daily</span><span class="val ex-daily">${planned}</span></span>
-        <span class="chip"><span class="lbl">Done</span><span class="val ex-done-today">${done}</span></span>
-        <span class="chip"><span class="lbl">Left</span><span class="val ex-left">${leftToday}</span></span>
+        <span class="chip"><span class="lbl">Daily</span><span class="val ex-daily">${planned} ${unit}</span></span>
+        <span class="chip"><span class="lbl">Done</span><span class="val ex-done-today">${done} ${unit}</span></span>
+        <span class="chip"><span class="lbl">Left</span><span class="val ex-left">${leftToday} ${unit}</span></span>
+        <span class="chip chip-over"${over > 0 ? '' : ' hidden'}>+<span class="ex-over">${over}</span> over</span>
       `;
       // Color-code chips based on progress
       {
@@ -485,6 +859,14 @@
         const k = (pct >= .8) ? 'ok' : (pct >= .4 ? 'warn' : 'danger');
         if (doneChip) doneChip.classList.add(k);
         if (leftChip) leftChip.classList.add(left === 0 ? 'ok' : (plannedToday ? (pct >= .5 ? 'warn' : 'danger') : 'warn'));
+        // Over chip visibility
+        const overVal = Math.max(0, doneToday - plannedToday);
+        const overChip = card.querySelector('.chip-over');
+        if (overChip) {
+          const overSpan = overChip.querySelector('.ex-over');
+          if (overSpan) setText(overSpan, String(overVal));
+          if (overVal > 0) overChip.removeAttribute('hidden'); else overChip.setAttribute('hidden', '');
+        }
       }
 
       // Quick step buttons
@@ -497,7 +879,9 @@
       const spark = document.createElement('canvas');
       spark.className = 'ex-sparkline';
       // Append sections to card before drawing so clientWidth is correct
-      card.append(header, progress, stats, spark);
+      card.append(header, badgesRow, progress, tipEl, stats, spark);
+      // Ensure tip text set (stable per day)
+      setText(qs(card, '#tip-' + ex.id), dailyQuote(ex.exerciseName || ''));
       // Draw sparkline now that it's in DOM
       try { drawSparkline(spark, series); } catch {}
       try { attachSparklineTooltip(spark, ex); } catch {}
@@ -634,7 +1018,8 @@
     const status = (pct >= 1) ? 'ok' : (pct >= 0.7 ? 'warn' : 'danger');
     container.classList.add(status);
     if (fill) fill.style.width = (pct * 100).toFixed(1) + '%';
-    if (label) label.textContent = `This week: ${done} / ${goal}`;
+    const unit = ex.unit || 'reps';
+    if (label) label.textContent = `This week: ${done} / ${goal} ${unit}`;
   }
 
   function attachSparklineTooltip(canvas, ex){
@@ -649,7 +1034,8 @@
       const idx = Math.min(values.length - 1, Math.max(0, Math.round(x / step)));
       const day = days7[idx];
       const val = values[idx];
-      sparkTooltip.textContent = `${day}: ${val}`;
+      const unit = ex.unit || 'reps';
+      sparkTooltip.textContent = `${day}: ${val} ${unit}`;
       sparkTooltip.style.left = (evt.pageX || (rect.left + x + window.scrollX)) + 'px';
       sparkTooltip.style.top = (rect.top + window.scrollY) + 'px';
       sparkTooltip.style.opacity = 1;
@@ -692,13 +1078,19 @@
       const today = todayStrUTC();
       applyDailyRollover(ex);
       const currentAmt = Math.max(1, Number(btn.dataset.amount || amount));
-      const dec = Math.min(currentAmt, Math.max(0, Number(ex.remaining || 0)));
+      const dec = currentAmt; // do not clamp by remaining/planned
       ex.remaining = Math.max(0, Number(ex.remaining || 0) - dec);
       addDone(ex, today, dec);
       pruneHistory(ex);
       invalidateStreak(ex.id);
+      checkAchievements(ex);
       persistExercise(ex);
       if (typeof updateCard === 'function') updateCard(ex);
+      // Push updated weekly total to leaderboard (if configured)
+      try {
+        const cfg = getLbConfig();
+        if (cfg.name && cfg.url && cfg.key) upsertScore(cfg.name, computeWeeklyTotalAll());
+      } catch {}
       // Confetti + disable buttons when done
       if ((ex.remaining || 0) <= 0) {
         const today2 = todayStrUTC();
@@ -754,10 +1146,16 @@
     const s30 = sumRange(30);
     const r7 = s7.planned > 0 ? Math.round((s7.done / s7.planned) * 100) : 0;
     const r30 = s30.planned > 0 ? Math.round((s30.done / s30.planned) * 100) : 0;
+    const earnedTitles = (Array.isArray(ex.badges) ? ex.badges : []).map(getAchievementTitle);
+    const pb = maxDayDone(ex);
+    const ls = longestStreak(ex);
+    const unit = ex.unit || 'reps';
     el.historyStats.innerHTML = `
       <div class="stack">
-        <div><strong>Last 7 days:</strong> Planned ${s7.planned}, Done ${s7.done} — ${r7}%</div>
-        <div><strong>Last 30 days:</strong> Planned ${s30.planned}, Done ${s30.done} — ${r30}%</div>
+        <div><strong>PB Day:</strong> ${pb.date} ${pb.value} ${unit} • <strong>Longest Streak:</strong> ${ls}</div>
+        <div><strong>Last 7 days:</strong> Planned ${s7.planned} ${unit}, Done ${s7.done} ${unit} — ${r7}%</div>
+        <div><strong>Last 30 days:</strong> Planned ${s30.planned} ${unit}, Done ${s30.done} ${unit} — ${r30}%</div>
+        ${earnedTitles.length ? `<div><strong>Achievements:</strong> ${earnedTitles.join(', ')}</div>` : ''}
       </div>`;
 
     const recentDays = getRecentDays(14);
@@ -769,61 +1167,36 @@
       row.className = 'row';
       row.innerHTML = `
         <div class="muted">${ds}</div>
-        <div>Planned: ${ent.planned}</div>
-        <div>Done: ${ent.done}</div>
+        <div>Planned: ${ent.planned} ${unit}</div>
+        <div>Done: ${ent.done} ${unit}</div>
         <div>${pct}%</div>
       `;
       el.historyList.appendChild(row);
     });
 
-    // Render bar chart for last 14 days (planned vs done)
-    if (window.__historyChart) {
-      try { window.__historyChart.destroy(); } catch {}
-      window.__historyChart = null;
-    }
-    await loadChartJs();
-    const ctx = el.historyChart?.getContext('2d');
-    if (ctx && window.Chart) {
-      const cs = getComputedStyle(document.documentElement);
-      const fg = (cs.getPropertyValue('--fg') || '#111').trim();
-      const grid = (cs.getPropertyValue('--border') || '#ddd').trim();
-      const days = recentDays; // already oldest -> newest
-      const planned = days.map(d => Number((ex.history[d]?.planned) || 0));
-      const done = days.map(d => Number((ex.history[d]?.done) || 0));
-      window.__historyChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: days,
-          datasets: [
-            {
-              label: 'Planned',
-              data: planned,
-              backgroundColor: 'rgba(59, 130, 246, 0.5)',
-              borderColor: 'rgba(59, 130, 246, 1)',
-              borderWidth: 1,
-            },
-            {
-              label: 'Done',
-              data: done,
-              backgroundColor: 'rgba(16, 185, 129, 0.5)',
-              borderColor: 'rgba(16, 185, 129, 1)',
-              borderWidth: 1,
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: { ticks: { color: fg }, grid: { color: grid } },
-            y: { beginAtZero: true, ticks: { color: fg }, grid: { color: grid } }
-          },
-          plugins: {
-            legend: { position: 'top', labels: { color: fg } }
-          }
-        }
-      });
-    }
+    // Tabs and chart
+    const tabRecent = document.getElementById('tabRecent');
+    const tabTrends = document.getElementById('tabTrends');
+    const setActive = (mode) => {
+      if (tabRecent && tabTrends) {
+        tabRecent.classList.toggle('active', mode === 'recent');
+        tabTrends.classList.toggle('active', mode === 'trends');
+      }
+    };
+    let mode = localStorage.getItem(HISTORY_TAB_KEY) || 'recent';
+    if (mode !== 'recent' && mode !== 'trends') mode = 'recent';
+    setActive(mode);
+    await renderHistoryChart(mode, ex);
+    if (tabRecent) tabRecent.onclick = async () => {
+      localStorage.setItem(HISTORY_TAB_KEY, 'recent');
+      setActive('recent');
+      await renderHistoryChart('recent', ex);
+    };
+    if (tabTrends) tabTrends.onclick = async () => {
+      localStorage.setItem(HISTORY_TAB_KEY, 'trends');
+      setActive('trends');
+      await renderHistoryChart('trends', ex);
+    };
 
     el.historyModal.classList.remove('hidden');
   }
@@ -844,11 +1217,17 @@
     const darkToggle = $('#darkToggle');
     const addExerciseBtn = $('#addExerciseBtn');
     const showWeeklyNowBtn = document.getElementById('showWeeklyNowBtn');
+    const lbName = document.getElementById('lbName');
+    const lbUrl = document.getElementById('lbUrl');
+    const lbKey = document.getElementById('lbKey');
+    const saveLbCfgBtn = document.getElementById('saveLbCfgBtn');
+    const openLeaderboardBtn = document.getElementById('openLeaderboardBtn');
     const exerciseSelect = $('#exerciseSelect');
     const customAmount = $('#customAmount');
     const applyCustomBtn = $('#applyCustomBtn');
     const settingsAddTargetBtn = $('#settingsAddTargetBtn');
     const settingsHistoryBtn = $('#settingsHistoryBtn');
+    const shareCardBtnEl = $('#shareCardBtn');
     const toggleDebugBtn = $('#toggleDebugBtn');
     const debugPanel = $('#debugPanel');
 
@@ -856,13 +1235,21 @@
     // Rollover for each exercise on load
     const list = loadExercises();
     let changed = false;
-    list.forEach((ex) => { if (applyDailyRollover(ex)) changed = true; });
+    list.forEach((ex) => {
+      if (applyDailyRollover(ex)) { checkAchievements(ex); changed = true; }
+      else ensureBadges(ex);
+    });
     if (changed) saveExercises(list);
     // Handle any URL quick actions before the first render
     handleURLQuickAction();
     renderDashboard();
     // Initialize storage size meter
     updateStorageSize();
+    // Push initial weekly total to leaderboard (if configured)
+    try {
+      const cfg0 = getLbConfig();
+      if (cfg0.name && cfg0.url && cfg0.key) upsertScore(cfg0.name, computeWeeklyTotalAll());
+    } catch {}
 
     // Weekly Summary: show once per week (per Sunday)
     try {
@@ -938,6 +1325,14 @@
           }
         });
       }
+      // Prefill leaderboard config and toggle leaderboard button
+      try {
+        const cfg = getLbConfig();
+        if (lbName) lbName.value = cfg.name || '';
+        if (lbUrl) lbUrl.value = cfg.url || '';
+        if (lbKey) lbKey.value = cfg.key || '';
+        if (openLeaderboardBtn) openLeaderboardBtn.style.display = (cfg.url && cfg.key && cfg.name) ? '' : 'none';
+      } catch {}
       settingsModal?.classList.remove('hidden');
     }
     function closeSettings() {
@@ -1106,6 +1501,7 @@
       addDone(ex, today, amt);
       pruneHistory(ex);
       invalidateStreak(ex.id);
+      checkAchievements(ex);
       saveDebounced(() => saveExercises(items));
       updateExerciseCardView(ex);
       showToast(`−${amt} logged`);
@@ -1124,6 +1520,7 @@
       addPlanned(ex, today, inc);
       pruneHistory(ex);
       invalidateStreak(ex.id);
+      checkAchievements(ex);
       saveDebounced(() => saveExercises(items));
       updateExerciseCardView(ex);
       showToast(`+${inc} added`);
@@ -1135,6 +1532,54 @@
       openHistory(currentExerciseId);
     });
 
+    // Save leaderboard settings
+    saveLbCfgBtn?.addEventListener('click', () => {
+      const name = (lbName?.value || '').trim();
+      const url = (lbUrl?.value || '').trim();
+      const key = (lbKey?.value || '').trim();
+      try {
+        localStorage.setItem('lbName', name);
+        localStorage.setItem('lbUrl', url);
+        localStorage.setItem('lbKey', key);
+        if (openLeaderboardBtn) openLeaderboardBtn.style.display = (name && url && key) ? '' : 'none';
+        showToast('Leaderboard settings saved');
+      } catch {}
+    });
+
+    // Open leaderboard modal
+    openLeaderboardBtn?.addEventListener('click', async () => {
+      if (!supaConfigured()) { showToast('Configure Supabase first'); return; }
+      const rows = await loadLeaderboard();
+      if (leaderboardList) {
+        leaderboardList.innerHTML = '';
+        if (!rows.length) {
+          leaderboardList.textContent = 'No scores yet for this week.';
+        } else {
+          rows.forEach((r, i) => {
+            const div = document.createElement('div');
+            div.className = 'row';
+            const rank = i + 1;
+            div.innerHTML = `<strong>#${rank}</strong> ${r.name || '—'} — ${r.total || 0}`;
+            leaderboardList.appendChild(div);
+          });
+        }
+      }
+      leaderboardModal?.classList.remove('hidden');
+    });
+
+    document.getElementById('closeLeaderboard')?.addEventListener('click', () => {
+      leaderboardModal?.classList.add('hidden');
+    });
+
+    // Share Progress Card
+    shareCardBtnEl?.addEventListener('click', () => {
+      if (!currentExerciseId) return;
+      const items = loadExercises();
+      const ex = items.find(i => i.id === currentExerciseId);
+      if (!ex) return;
+      try { renderShareCard(ex); } catch (e) { console.error(e); }
+    });
+
     el.cancelBtn?.addEventListener('click', closeModal);
 
     el.saveBtn?.addEventListener('click', () => {
@@ -1142,6 +1587,7 @@
       const dailyVal = Number(el.daily.value);
       const stepRaw = el.step.value;
       const stepVal = Number(stepRaw);
+      const unitVal = (el.unitSel?.value || 'reps');
       const thresholdRaw = (el.streakThreshold?.value || '').trim();
       let thresholdVal = thresholdRaw === '' ? 1.0 : Number(thresholdRaw);
       if (!Number.isFinite(thresholdVal)) thresholdVal = 1.0;
@@ -1177,17 +1623,19 @@
 
       const listNow = loadExercises();
       if (editingId === null) {
-        const ex = {
+      const ex = {
           id: uuid(),
           exerciseName: nameVal,
           dailyTarget: Math.max(1, dailyVal),
           decrementStep: finalStep,
+          unit: unitVal || 'reps',
           remaining: Math.max(1, dailyVal),
           lastAppliedDate: todayStrUTC(),
           history: {},
           completionThreshold: thresholdVal,
           quickSteps: undefined,
           weeklyGoal: 0,
+          badges: [],
         };
         // set quickSteps default or provided
         if (qs.length) ex.quickSteps = Array.from(new Set(qs)).sort((a,b)=>a-b).slice(0,4);
@@ -1203,6 +1651,7 @@
           listNow[idx].exerciseName = nameVal;
           listNow[idx].dailyTarget = Math.max(1, dailyVal);
           listNow[idx].decrementStep = finalStep;
+          listNow[idx].unit = unitVal || 'reps';
           // keep remaining as-is
           if (listNow[idx].completionThreshold == null) listNow[idx].completionThreshold = 1.0;
           listNow[idx].completionThreshold = thresholdVal;
@@ -1262,7 +1711,8 @@
         doneArr.push(ent.done || 0);
       });
       const rate = planned > 0 ? Math.round((done / planned) * 100) : 0;
-      statsHTML += `<div><strong>${ex.exerciseName}:</strong> ${done}/${planned} reps (${rate}%)</div>`;
+      const unit = ex.unit || 'reps';
+      statsHTML += `<div><strong>${ex.exerciseName}:</strong> ${done}/${planned} ${unit} (${rate}%)</div>`;
       datasets.push({
         label: ex.exerciseName + ' planned',
         data: planArr,
@@ -1336,9 +1786,26 @@
     const dailyEl = card.querySelector('.ex-daily');
     const doneEl = card.querySelector('.ex-done-today');
     const leftEl = card.querySelector('.ex-left');
-    if (dailyEl) setText(dailyEl, String(p));
-    if (doneEl) setText(doneEl, String(d));
-    if (leftEl) setText(leftEl, String(l));
+    // Ensure over chip exists
+    let overChip = card.querySelector('.chip-over');
+    const statsWrap = card.querySelector('.ex-stats');
+    if (!overChip && statsWrap) {
+      overChip = document.createElement('span');
+      overChip.className = 'chip chip-over';
+      overChip.setAttribute('hidden', '');
+      overChip.innerHTML = `+<span class="ex-over">0</span> over`;
+      statsWrap.appendChild(overChip);
+    }
+    const unit = ex.unit || 'reps';
+    if (dailyEl) setText(dailyEl, `${p} ${unit}`);
+    if (doneEl) setText(doneEl, `${d} ${unit}`);
+    if (leftEl) setText(leftEl, `${l} ${unit}`);
+    if (overChip) {
+      const overVal = Math.max(0, d - p);
+      const overSpan = overChip.querySelector('.ex-over');
+      if (overSpan) setText(overSpan, String(overVal));
+      if (overVal > 0) overChip.removeAttribute('hidden'); else overChip.setAttribute('hidden', '');
+    }
     const ring = card.querySelector('.ring');
     if (ring) {
       ring.style.setProperty('--pct', String(pct * 100));
@@ -1356,6 +1823,24 @@
       const leftOverall = Number(ex.remaining || 0);
       if (leftChip) leftChip.classList.add(leftOverall === 0 ? 'ok' : (p ? (pct >= .5 ? 'warn' : 'danger') : 'warn'));
     }
+    // Update badges (first 3)
+    let badgesRow = card.querySelector('.ex-badges');
+    if (!badgesRow) {
+      badgesRow = document.createElement('div');
+      badgesRow.className = 'ex-badges';
+      const header = card.querySelector('.ex-header');
+      if (header && header.nextSibling) card.insertBefore(badgesRow, header.nextSibling); else card.prepend(badgesRow);
+    }
+    badgesRow.innerHTML = '';
+    const earned = Array.isArray(ex.badges) ? ex.badges.slice(0,3) : [];
+    earned.forEach((id) => {
+      const s = document.createElement('span');
+      s.className = 'badge';
+      s.title = getAchievementTitle(id);
+      s.textContent = getAchievementTitle(id);
+      badgesRow.appendChild(s);
+    });
+
     // enable/disable quick-step buttons based on remaining
     const qsBtns = card.querySelectorAll('.ex-buttons button');
     qsBtns.forEach(b => { b.disabled = (ex.remaining || 0) <= 0; });
@@ -1369,6 +1854,24 @@
     }
     // Update weekly progress bar
     updateWeeklyBar(card, ex);
+
+    // Update PB pill in header
+    const titleEl = card.querySelector('.ex-title');
+    if (titleEl) {
+      let pill = titleEl.querySelector('.ex-pb-pill');
+      const pbMeta = maxDayDone(ex);
+      if (pbMeta.value > 0) {
+        if (!pill) {
+          pill = document.createElement('span');
+          pill.className = 'pill ex-pb-pill';
+          titleEl.appendChild(document.createTextNode(' '));
+          titleEl.appendChild(pill);
+        }
+        pill.textContent = `PB ${pbMeta.value}`;
+      } else if (pill) {
+        pill.remove();
+      }
+    }
   }
 
   // --- Confetti ---

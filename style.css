@@ -524,6 +524,7 @@ button.large {
 
 /* Progress ring */
 .ex-progress { display:grid; justify-items:center; gap:8px; margin: 6px 0 8px; }
+.ex-tip { font-size: 13px; opacity:.85; text-align:center; margin:4px 0 6px; }
 .ring {
   --size: 124px;
   --track: rgba(255,255,255,0.08);
@@ -566,6 +567,9 @@ button.large {
 }
 .ex-buttons .btn[disabled] { opacity: 0.5; }
 
+/* Small pill */
+.pill { font-size:12px; padding:3px 8px; border-radius:999px; background:rgba(255,255,255,.08); }
+
 /* Responsive tweak */
 @media (max-width: 420px) {
   .ring { --size: 112px; }
@@ -590,6 +594,24 @@ button.large {
   font-size: 14px;
   line-height: 1.4;
 }
+
+/* Minimal tabs */
+.tabs { display:inline-flex; gap:8px; align-items:center; margin: 8px 0; }
+.tabs button { font-size:12px; padding:6px 10px; border-radius:8px; background: rgba(255,255,255,0.06); border: 1px solid transparent; color: var(--fg); }
+.tabs button.active { background: var(--accent); color: #fff; }
+
+/* Template buttons row */
+.template-row { display:flex; gap:8px; flex-wrap:wrap; margin: 8px 0 6px; }
+.template-row .tpl-btn {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+.template-row .tpl-btn:hover { border-color: var(--accent); }
 
 /* Compact, color-coded chips */
 .chip { background: rgba(255,255,255,0.06); }
@@ -630,3 +652,23 @@ button.large {
 .week-progress.ok   .wp-fill { background: linear-gradient(90deg, #2ecc71, #77e8a1); }
 .week-progress.warn .wp-fill { background: linear-gradient(90deg, #f1c40f, #ffd666); }
 .week-progress.danger .wp-fill { background: linear-gradient(90deg, #e74c3c, #ff8a80); }
+
+/* Over-completion chip */
+.chip-over { background: rgba(76,175,80,.18); color:#b9f6ca; }
+
+/* Unified primary button + icon */
+.btn.primary { background: var(--accent); color: var(--btn-fg); }
+.btn.primary:hover { filter: brightness(1.05); }
+.btn-ico { display:inline-flex; margin-right:8px; vertical-align:middle; }
+
+/* Tiny badges */
+.ex-badges { display:flex; gap:6px; flex-wrap:wrap; margin: 4px 0 6px; }
+.badge {
+  display:inline-block;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.08);
+  color: var(--fg);
+  line-height: 1.2;
+}

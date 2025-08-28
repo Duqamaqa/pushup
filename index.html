@@ -31,6 +31,7 @@
   <section id="setup-view" class="modal" aria-labelledby="modal-title" aria-modal="true" hidden>
     <div class="modal-card" role="dialog">
       <h2 id="modal-title">Add/Edit Exercise</h2>
+      <div id="templateRow" class="template-row"></div>
       <div class="stack">
         <div class="field">
           <input type="text" id="exerciseName" placeholder="Exercise name (e.g., Push-ups)" autocomplete="off" />
@@ -43,6 +44,14 @@
         <div class="field">
           <input type="number" id="decrementStep" placeholder="Decrement per tap (e.g., 10)" min="1" inputmode="numeric" />
           <small class="error-msg" id="decrementStepError" aria-live="polite" hidden>Decrement step must be ≥ 1.</small>
+        </div>
+        <div class="field compact">
+          <label for="unitSel">Unit</label>
+          <select id="unitSel">
+            <option value="reps">reps</option>
+            <option value="min">min</option>
+            <option value="km">km</option>
+          </select>
         </div>
         <div class="field compact">
           <label for="streakThreshold">Streak threshold (0.5–1.0)</label>
@@ -71,6 +80,10 @@
       <h2 id="historyTitle">History</h2>
       <div id="historyStats"></div>
       <div id="historyList" class="history-list"></div>
+      <div class="tabs">
+        <button id="tabRecent">Recent</button>
+        <button id="tabTrends">Trends</button>
+      </div>
       <canvas id="historyChart" width="400" height="260"></canvas>
       <div class="modal-actions">
         <button id="closeHistory">Close</button>
@@ -100,6 +113,25 @@
             </div>
             <div class="row">
               <button id="importBtn" class="btn wfull">Import JSON</button>
+            </div>
+            <hr>
+            <div class="row">
+              <label for="lbName" class="label">Username</label>
+              <input id="lbName" type="text" placeholder="e.g., Alex" autocomplete="name">
+            </div>
+            <div class="row">
+              <label for="lbUrl" class="label">Supabase URL</label>
+              <input id="lbUrl" type="text" placeholder="https://your-project.supabase.co">
+            </div>
+            <div class="row">
+              <label for="lbKey" class="label">Supabase Key (anon)</label>
+              <input id="lbKey" type="text" placeholder="eyJhbGci...">
+            </div>
+            <div class="row">
+              <button id="saveLbCfgBtn" class="btn wfull">Save Leaderboard Settings</button>
+            </div>
+            <div class="row">
+              <button id="openLeaderboardBtn" class="btn wfull">Friend Leaderboard</button>
             </div>
             <div class="row between">
               <label for="darkToggle" class="label">Dark</label>
@@ -146,7 +178,18 @@
             </div>
 
             <div class="row">
-              <button id="settingsHistoryBtn" class="btn wfull">History</button>
+              <button id="settingsHistoryBtn" class="btn primary wfull">
+                <span class="btn-ico" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                    <path d="M13 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-7-7V3Zm0 4v6l5 3-.8 1.35L11 13V7h2Z"/>
+                  </svg>
+                </span>
+                View History
+              </button>
+            </div>
+
+            <div class="row">
+              <button id="shareCardBtn" class="btn wfull">Share Progress Card</button>
             </div>
           </div>
         </section>
@@ -171,6 +214,15 @@
       <canvas id="weeklyChart" width="400" height="220"></canvas>
       <div class="modal-actions">
         <button id="closeWeekly">Close</button>
+      </div>
+    </div>
+  </div>
+  <div id="leaderboardModal" class="modal hidden">
+    <div class="modal-content">
+      <h2>Friend Leaderboard</h2>
+      <div id="leaderboardList"></div>
+      <div class="modal-actions">
+        <button id="closeLeaderboard">Close</button>
       </div>
     </div>
   </div>

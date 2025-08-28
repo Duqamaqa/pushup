@@ -52,6 +52,10 @@
           <label for="quickStepsInput">Quick steps (comma-separated, e.g., 1,5,10)</label>
           <input type="text" id="quickStepsInput" placeholder="e.g., 1,5,10" autocomplete="off" />
         </div>
+        <div class="field compact">
+          <label for="weeklyGoalInput">Weekly goal (total reps)</label>
+          <input id="weeklyGoalInput" type="number" min="0" placeholder="e.g., 500" />
+        </div>
       </div>
       <div class="modal-actions">
         <button id="saveExerciseBtn" class="primary btn-block">Save</button>
@@ -170,5 +174,6 @@
       </div>
     </div>
   </div>
+  <div id="sparkTooltip" class="spark-tooltip"></div>
 </body>
 </html>

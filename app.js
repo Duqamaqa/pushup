@@ -326,6 +326,7 @@
     step: document.getElementById('decrementStep'),
     streakThreshold: document.getElementById('streakThreshold'),
     quickStepsInput: document.getElementById('quickStepsInput'),
+    weeklyGoalInput: document.getElementById('weeklyGoalInput'),
     errName: document.getElementById('exerciseNameError'),
     errDaily: document.getElementById('dailyTargetError'),
     errStep: document.getElementById('decrementStepError'),
@@ -344,6 +345,7 @@
   const closeWeekly = document.getElementById('closeWeekly');
   const weeklyStats = document.getElementById('weeklyStats');
   const weeklyChartEl = document.getElementById('weeklyChart');
+  const sparkTooltip = document.getElementById('sparkTooltip');
 
   let editingId = null; // null => adding new
 
@@ -361,6 +363,11 @@
       const qs = Array.isArray(exercise?.quickSteps) ? exercise.quickSteps : [];
       el.quickStepsInput.value = qs.length ? qs.join(',') : '';
     }
+    if (el.weeklyGoalInput) {
+      const autoGoal = Math.max(0, Number(exercise ? (exercise.dailyTarget || 0) * 7 : 0));
+      const wg = exercise ? Number(exercise.weeklyGoal || autoGoal) : '';
+      el.weeklyGoalInput.value = exercise ? String(wg) : '';
+    }
     clearErrors();
     el.modal.hidden = false;
   }
@@ -373,6 +380,7 @@
     el.step.value = '';
     if (el.streakThreshold) el.streakThreshold.value = '';
     if (el.quickStepsInput) el.quickStepsInput.value = '';
+    if (el.weeklyGoalInput) el.weeklyGoalInput.value = '';
     clearErrors();
   }
 
@@ -403,6 +411,7 @@
       // defaults for new fields
       if (ex.completionThreshold == null) ex.completionThreshold = 1.0;
       if (!ex.history) ex.history = {};
+      ensureWeeklyGoal(ex);
 
       // Compute today's stats
       const today = todayStrUTC();
@@ -463,70 +472,65 @@
         <span class="chip"><span class="lbl">Done</span><span class="val ex-done-today">${done}</span></span>
         <span class="chip"><span class="lbl">Left</span><span class="val ex-left">${leftToday}</span></span>
       `;
+      // Color-code chips based on progress
+      {
+        const plannedToday = Number(ex.history?.[today]?.planned || 0);
+        const doneToday = Number(ex.history?.[today]?.done || 0);
+        const left = Number(ex.remaining || 0);
+        const dailyChip = card.querySelector('.ex-daily')?.closest('.chip');
+        const doneChip = card.querySelector('.ex-done-today')?.closest('.chip');
+        const leftChip = card.querySelector('.ex-left')?.closest('.chip');
+        [dailyChip, doneChip, leftChip].forEach(c => c && c.classList.remove('ok','warn','danger'));
+        const pct = plannedToday > 0 ? (doneToday / plannedToday) : 0;
+        const k = (pct >= .8) ? 'ok' : (pct >= .4 ? 'warn' : 'danger');
+        if (doneChip) doneChip.classList.add(k);
+        if (leftChip) leftChip.classList.add(left === 0 ? 'ok' : (plannedToday ? (pct >= .5 ? 'warn' : 'danger') : 'warn'));
+      }
 
       // Quick step buttons
       const qsWrap = document.createElement('div');
       qsWrap.className = 'ex-buttons';
       const quickSteps = getQuickStepsFor(ex);
+      // Sparkline (7-day done)
+      const days7 = getRecentDays(7); // oldest -> newest
+      const series = days7.map(d => Number(ex.history?.[d]?.done || 0));
+      const spark = document.createElement('canvas');
+      spark.className = 'ex-sparkline';
+      // Append sections to card before drawing so clientWidth is correct
+      card.append(header, progress, stats, spark);
+      // Draw sparkline now that it's in DOM
+      try { drawSparkline(spark, series); } catch {}
+      try { attachSparklineTooltip(spark, ex); } catch {}
+      // Weekly goal progress bar
+      const week = document.createElement('div');
+      week.className = 'week-progress';
+      week.innerHTML = '<div class="wp-bar"><div class="wp-fill" style="width:0%"></div></div><div class="wp-label">This week: 0 / 0</div>';
+      card.append(week);
+      updateWeeklyBar(card, ex);
+      // Now continue with quick-step buttons
       quickSteps.forEach((n) => {
         const b = document.createElement('button');
         b.className = 'btn primary';
+        b.dataset.amount = String(n);
         b.textContent = `−${n}`;
         if ((ex.remaining ?? 0) <= 0) b.disabled = true;
-        b.addEventListener('click', () => {
-          const items = loadExercises();
-          const idx = items.findIndex((i) => i.id === ex.id);
-          if (idx === -1) return;
-          const amount = Math.max(1, Number(n));
-          const today2 = todayStrUTC();
-          const target = items[idx];
-          // Apply
-          target.remaining = Math.max(0, Number(target.remaining || 0) - amount);
-          addDone(target, today2, amount);
-          pruneHistory(target);
-          invalidateStreak(target.id);
-          saveDebounced(() => saveExercises(items));
-          // Recompute today's stats
-          const e = (target.history && target.history[today2]) || { planned: 0, done: 0 };
-          const p = Number(e.planned || 0);
-          const d = Number(e.done || 0);
-          const l = Math.max(0, p - d);
-          const pctNow = p > 0 ? Math.min(1, d / p) : 0;
-          // minimal UI updates
-          setText(remainingEl, String(target.remaining || 0));
-          const dailyEl = card.querySelector('.ex-daily');
-          const doneEl = card.querySelector('.ex-done-today');
-          const leftEl = card.querySelector('.ex-left');
-          if (dailyEl) setText(dailyEl, String(p));
-          if (doneEl) setText(doneEl, String(d));
-          if (leftEl) setText(leftEl, String(l));
-          const newPct = (pctNow * 100).toFixed(2);
-          ring.style.background = `conic-gradient(var(--accent) ${newPct}%, var(--track) 0)`;
-          if ((target.remaining || 0) <= 0) {
-            doneMsg.removeAttribute('hidden');
-            setText(doneMsg, 'Great job! ✅');
-            // disable all quick buttons when done
-            Array.from(qsWrap.querySelectorAll('button')).forEach(btn => btn.disabled = true);
-            // Confetti burst once per day
-            if ((target._confettiDoneForToday || '') !== today2) {
-              try { target._confettiDoneForToday = today2; } catch {}
-              saveExercises(items);
-              try { launchConfetti(); } catch {}
-            }
-          } else {
-            doneMsg.setAttribute('hidden', '');
+        attachQuickStepHandlers(b, ex, n, (updatedEx) => {
+          // minimal per-card UI update
+          updateExerciseCardView(updatedEx);
+          updateWeeklyBar(card, updatedEx);
+          // flash success on ring
+          const ringEl = card.querySelector('.ring');
+          if (ringEl) {
+            ringEl.classList.remove('flash-success');
+            requestAnimationFrame(() => {
+              ringEl.classList.add('flash-success');
+              setTimeout(() => ringEl.classList.remove('flash-success'), 350);
+            });
           }
-          // simple flash animation hook
-          ring.classList.remove('flash-success');
-          requestAnimationFrame(() => {
-            ring.classList.add('flash-success');
-            setTimeout(() => ring.classList.remove('flash-success'), 350);
-          });
         });
         qsWrap.appendChild(b);
       });
-
-      card.append(header, progress, stats, qsWrap);
+      card.append(qsWrap);
       containerFrag.appendChild(card);
 
       // Handlers per card
@@ -550,6 +554,182 @@
     }
     steps = uniq(steps).sort((a, b) => a - b).slice(0, 4);
     return steps;
+  }
+
+  // --- Sparkline ---
+  function drawSparkline(canvas, values){
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = canvas.clientWidth || 280;
+    const cssH = canvas.clientHeight || 40;
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, cssW, cssH);
+
+    const max = Math.max(1, ...values);
+    const min = 0;
+    const n = values.length;
+    const step = cssW / ((n - 1) || 1);
+
+    // grid baseline
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, cssH - 1.5);
+    ctx.lineTo(cssW, cssH - 1.5);
+    ctx.stroke();
+
+    // line
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#4c8dff';
+    ctx.strokeStyle = accent.trim() || '#4c8dff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const x = i * step;
+      const y = cssH - ((values[i] - min) / (max - min)) * (cssH - 4) - 2;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // fill
+    const grad = ctx.createLinearGradient(0, 0, 0, cssH);
+    grad.addColorStop(0, 'rgba(100,150,255,0.25)');
+    grad.addColorStop(1, 'rgba(100,150,255,0.00)');
+    ctx.fillStyle = grad;
+    ctx.lineTo(cssW, cssH);
+    ctx.lineTo(0, cssH);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // --- Weekly progress helpers ---
+  function sumLast7Done(ex){
+    const days = getRecentDays(7); // includes today, oldest->newest
+    let s = 0;
+    for (const d of days){ s += Number(ex.history?.[d]?.done || 0); }
+    return s;
+  }
+
+  function ensureWeeklyGoal(ex){
+    if (!ex.weeklyGoal || ex.weeklyGoal <= 0){
+      ex.weeklyGoal = Math.max(0, Number(ex.dailyTarget || 0) * 7);
+    }
+    return ex.weeklyGoal;
+  }
+
+  function updateWeeklyBar(card, ex){
+    if (!card) return;
+    const container = card.querySelector('.week-progress');
+    if (!container) return;
+    const fill = container.querySelector('.wp-fill');
+    const label = container.querySelector('.wp-label');
+    const goal = ensureWeeklyGoal(ex);
+    const done = sumLast7Done(ex);
+    const pct = goal > 0 ? Math.min(1, done / goal) : 0;
+    container.classList.remove('ok','warn','danger');
+    const status = (pct >= 1) ? 'ok' : (pct >= 0.7 ? 'warn' : 'danger');
+    container.classList.add(status);
+    if (fill) fill.style.width = (pct * 100).toFixed(1) + '%';
+    if (label) label.textContent = `This week: ${done} / ${goal}`;
+  }
+
+  function attachSparklineTooltip(canvas, ex){
+    if (!canvas || !sparkTooltip) return;
+    const days7 = getRecentDays(7); // oldest -> newest
+    const values = days7.map(d => Number(ex.history?.[d]?.done || 0));
+
+    function showTip(evt){
+      const rect = canvas.getBoundingClientRect();
+      const x = (evt.clientX ?? evt.pageX) - rect.left;
+      const step = rect.width / ((values.length - 1) || 1);
+      const idx = Math.min(values.length - 1, Math.max(0, Math.round(x / step)));
+      const day = days7[idx];
+      const val = values[idx];
+      sparkTooltip.textContent = `${day}: ${val}`;
+      sparkTooltip.style.left = (evt.pageX || (rect.left + x + window.scrollX)) + 'px';
+      sparkTooltip.style.top = (rect.top + window.scrollY) + 'px';
+      sparkTooltip.style.opacity = 1;
+    }
+    function hideTip(){ sparkTooltip.style.opacity = 0; }
+
+    canvas.addEventListener('mousemove', showTip);
+    canvas.addEventListener('mouseleave', hideTip);
+    canvas.addEventListener('touchstart', (e)=>{ if(e.touches && e.touches[0]) showTip(e.touches[0]); }, {passive:true});
+    canvas.addEventListener('touchend', hideTip);
+  }
+
+  // --- Quick-step edit helpers ---
+  function editQuickStepValue(ex, oldVal){
+    const next = prompt('New decrement value (1–999):', oldVal);
+    if (next===null) return null;
+    const n = Math.max(1, Math.min(999, parseInt(next,10)||oldVal));
+    let steps = Array.isArray(ex.quickSteps) ? ex.quickSteps.slice() : [];
+    const idx = steps.indexOf(oldVal);
+    if (idx>=0) steps[idx] = n; else steps.push(n);
+    steps = Array.from(new Set(steps)).sort((a,b)=>a-b).slice(0,4);
+    ex.quickSteps = steps;
+    return n;
+  }
+
+  function persistExercise(ex){
+    const items = loadExercises();
+    const idx = items.findIndex(i => i.id === ex.id);
+    if (idx >= 0) {
+      items[idx] = Object.assign({}, items[idx], ex);
+      if (typeof saveDebounced === 'function') saveDebounced(() => saveExercises(items));
+      else saveExercises(items);
+    }
+  }
+
+  function attachQuickStepHandlers(btn, ex, amount, updateCard){
+    // normal click = decrement
+    btn.addEventListener('click', () => {
+      if (btn.__editing) return; // ignore if coming from long-press edit
+      const today = todayStrUTC();
+      applyDailyRollover(ex);
+      const currentAmt = Math.max(1, Number(btn.dataset.amount || amount));
+      const dec = Math.min(currentAmt, Math.max(0, Number(ex.remaining || 0)));
+      ex.remaining = Math.max(0, Number(ex.remaining || 0) - dec);
+      addDone(ex, today, dec);
+      pruneHistory(ex);
+      invalidateStreak(ex.id);
+      persistExercise(ex);
+      if (typeof updateCard === 'function') updateCard(ex);
+      // Confetti + disable buttons when done
+      if ((ex.remaining || 0) <= 0) {
+        const today2 = todayStrUTC();
+        if ((ex._confettiDoneForToday || '') !== today2) {
+          try { ex._confettiDoneForToday = today2; } catch {}
+          persistExercise(ex);
+          try { launchConfetti(); } catch {}
+        }
+        const card = btn.closest('.ex-card');
+        if (card) Array.from(card.querySelectorAll('.ex-buttons button')).forEach(b => b.disabled = true);
+      }
+    });
+
+    // long-press = edit value
+    let timer = null;
+    const start = () => { timer = setTimeout(() => {
+      btn.__editing = true;
+      const currentAmt = Math.max(1, Number(btn.dataset.amount || amount));
+      const newVal = editQuickStepValue(ex, currentAmt);
+      if (newVal !== null){
+        btn.textContent = `−${newVal}`;
+        btn.dataset.amount = String(newVal);
+        persistExercise(ex);
+      }
+      setTimeout(() => { btn.__editing = false; }, 250);
+    }, 550); };
+    const clear = () => { if (timer){ clearTimeout(timer); timer=null; } };
+
+    btn.addEventListener('mousedown', start);
+    btn.addEventListener('touchstart', start, { passive: true });
+    ['mouseup','mouseleave','touchend','touchcancel'].forEach(ev => btn.addEventListener(ev, clear));
   }
 
   async function openHistory(exId) {
@@ -818,6 +998,18 @@
           window.__historyChart.update();
         } catch {}
       }
+      // Redraw all sparklines with new theme-accent
+      const listNow = loadExercises() || [];
+      document.querySelectorAll('.ex-card').forEach((cardEl) => {
+        const id = cardEl.getAttribute('data-id');
+        const ex = listNow.find(e => e.id === id);
+        const canvas = cardEl.querySelector('.ex-sparkline');
+        if (ex && canvas) {
+          const days7 = getRecentDays(7);
+          const series = days7.map(d => Number(ex.history?.[d]?.done || 0));
+          try { drawSparkline(canvas, series); } catch {}
+        }
+      });
     });
 
     // Debug: FPS meter
@@ -884,6 +1076,7 @@
               history: ex.history && typeof ex.history === 'object' ? ex.history : {},
               completionThreshold: Number(ex.completionThreshold ?? 1.0),
               quickSteps: Array.isArray(ex.quickSteps) ? ex.quickSteps.map(Number) : undefined,
+              weeklyGoal: Math.max(0, Number(ex.weeklyGoal ?? (Number(ex.dailyTarget || 0) * 7)))
             }));
             saveExercises(norm);
             renderDashboard();
@@ -961,6 +1154,9 @@
           .map(s => parseInt(s.trim(), 10))
           .filter(n => Number.isFinite(n) && n >= 1 && n <= 999);
       }
+      // Weekly goal
+      const wgRaw = (el.weeklyGoalInput?.value || '').trim();
+      const wgNum = parseInt(wgRaw, 10);
 
       let valid = true;
       if (!nameVal) { valid = false; setInvalid(el.name, el.errName, true); } else { setInvalid(el.name, el.errName, false); }
@@ -991,10 +1187,14 @@
           history: {},
           completionThreshold: thresholdVal,
           quickSteps: undefined,
+          weeklyGoal: 0,
         };
         // set quickSteps default or provided
         if (qs.length) ex.quickSteps = Array.from(new Set(qs)).sort((a,b)=>a-b).slice(0,4);
         else ex.quickSteps = getQuickStepsFor(ex);
+        // set weekly goal
+        const computedWG = Math.max(0, Math.floor(Math.max(1, dailyVal) * 7));
+        ex.weeklyGoal = (Number.isFinite(wgNum) && wgRaw !== '') ? Math.max(0, wgNum) : computedWG;
         addPlanned(ex, todayStrUTC(), Math.max(1, dailyVal));
         listNow.push(ex);
       } else {
@@ -1010,6 +1210,9 @@
           // update quick steps
           if (qs.length) listNow[idx].quickSteps = Array.from(new Set(qs)).sort((a,b)=>a-b).slice(0,4);
           else listNow[idx].quickSteps = getQuickStepsFor(listNow[idx]);
+          // update weekly goal
+          const computedWG = Math.max(0, Math.floor(Math.max(1, dailyVal) * 7));
+          listNow[idx].weeklyGoal = (Number.isFinite(wgNum) && wgRaw !== '') ? Math.max(0, wgNum) : computedWG;
           invalidateStreak(listNow[idx].id);
         }
       }
@@ -1137,7 +1340,35 @@
     if (doneEl) setText(doneEl, String(d));
     if (leftEl) setText(leftEl, String(l));
     const ring = card.querySelector('.ring');
-    if (ring) ring.style.setProperty('--pct', String(pct * 100));
+    if (ring) {
+      ring.style.setProperty('--pct', String(pct * 100));
+      const newPct = (pct * 100).toFixed(2);
+      ring.style.background = `conic-gradient(var(--accent) ${newPct}%, var(--track) 0)`;
+    }
+    // update chip colors
+    {
+      const dailyChip = dailyEl?.closest('.chip');
+      const doneChip = doneEl?.closest('.chip');
+      const leftChip = leftEl?.closest('.chip');
+      [dailyChip, doneChip, leftChip].forEach(c => c && c.classList.remove('ok','warn','danger'));
+      const k = (pct >= .8) ? 'ok' : (pct >= .4 ? 'warn' : 'danger');
+      if (doneChip) doneChip.classList.add(k);
+      const leftOverall = Number(ex.remaining || 0);
+      if (leftChip) leftChip.classList.add(leftOverall === 0 ? 'ok' : (p ? (pct >= .5 ? 'warn' : 'danger') : 'warn'));
+    }
+    // enable/disable quick-step buttons based on remaining
+    const qsBtns = card.querySelectorAll('.ex-buttons button');
+    qsBtns.forEach(b => { b.disabled = (ex.remaining || 0) <= 0; });
+
+    // Redraw sparkline (last 7 days done)
+    const spark = card.querySelector('.ex-sparkline');
+    if (spark) {
+      const days7 = getRecentDays(7);
+      const series = days7.map(d => Number(ex.history?.[d]?.done || 0));
+      try { drawSparkline(spark, series); } catch {}
+    }
+    // Update weekly progress bar
+    updateWeeklyBar(card, ex);
   }
 
   // --- Confetti ---

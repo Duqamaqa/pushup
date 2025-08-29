@@ -1,6 +1,6 @@
 // PWA SW: precache core, runtime SWR for Chart.js
 // Checklist: lazy Chart.js, cache v8, SWR for CDN
-const CACHE_NAME = 'app-cache-v8';
+const CACHE_NAME = 'app-cache-v11';
 const ASSETS = [
   './',
   './index.html',
@@ -39,6 +39,11 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return; // only cache GET
 
   const url = new URL(req.url);
+  // Always bypass cache for version.json so About stays current
+  if (url.pathname.endsWith('/version.json') || url.pathname === '/version.json') {
+    event.respondWith(fetch(event.request, { cache: 'no-store' }));
+    return;
+  }
   // Always bypass cache for commit files (versioned or fallback)
   if (/commit(\.[0-9a-f]+)?\.js$/.test(url.pathname)) {
     event.respondWith(fetch(event.request, { cache: 'no-store' }));

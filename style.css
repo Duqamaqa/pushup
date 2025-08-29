@@ -705,3 +705,8 @@ button.large {
 
 /* Prevent background page from scrolling while modal is open */
 body.no-scroll { overflow: hidden; }
+
+/* About section */
+.about { margin-top: 12px; text-align:center; opacity:.85; font-size:13px; }
+.about-name { font-weight:600; font-size:14px; margin-bottom:4px; }
+.about-version { font-family: ui-monospace, SFMono-Regular, monospace; }

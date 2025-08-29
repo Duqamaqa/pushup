@@ -1258,6 +1258,29 @@
 
   // ---------- Init & Events ----------
   document.addEventListener('DOMContentLoaded', () => {
+    // About: set app version in Settings → Global
+    try {
+      const vEl = document.getElementById('appVersion');
+      if (vEl) vEl.textContent = window.__APP_VERSION__ || '1.0';
+    } catch {}
+
+    (async function loadVersion(){
+      try {
+        const res = await fetch('version.json', { cache: 'no-store' });
+        if (!res.ok) throw new Error('missing version.json');
+        const meta = await res.json();
+        const vEl = document.getElementById('appVersion');
+        const nEl = document.getElementById('aboutName');
+        if (nEl && meta.name) nEl.textContent = meta.name;
+        if (vEl && meta.version) vEl.textContent = meta.version;
+        // Optional: store globally for other uses
+        window.__APP_VERSION__ = meta.version;
+      } catch (e) {
+        // fallback: leave defaults
+        console.warn('Version load failed:', e);
+      }
+    })();
+
     (async () => {
       const el = document.getElementById('commitHash');
       if (!el) return;

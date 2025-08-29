@@ -412,6 +412,16 @@
 
     if (toastMsg) showToast(toastMsg);
 
+    // If this was a decrement (i.e., logging reps), push weekly total
+    try {
+      if (decStr) {
+        const cfg = getLbConfig?.();
+        if (cfg && cfg.name && cfg.url && cfg.key) {
+          upsertScore(cfg.name, computeWeeklyTotalAll());
+        }
+      }
+    } catch {}
+
     // strip query so action won't repeat on refresh/back
     window.history.replaceState(null, '', url.pathname);
 
@@ -1521,6 +1531,11 @@
       saveDebounced(() => saveExercises(items));
       updateExerciseCardView(ex);
       showToast(`−${amt} logged`);
+      // Push updated weekly total to leaderboard (if configured)
+      try {
+        const cfg = getLbConfig();
+        if (cfg.name && cfg.url && cfg.key) upsertScore(cfg.name, computeWeeklyTotalAll());
+      } catch {}
     });
 
     settingsAddTargetBtn?.addEventListener('click', () => {

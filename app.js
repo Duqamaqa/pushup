@@ -108,7 +108,7 @@
 
   // Settings accordion state
   function setAccOpen(key) { try { localStorage.setItem(ACC_KEY, key); } catch {} }
-  function getAccOpen() { try { return localStorage.getItem(ACC_KEY) || 'exercise'; } catch { return 'exercise'; } }
+  function getAccOpen() { try { return localStorage.getItem(ACC_KEY) || ''; } catch { return ''; } }
 
   // Lazy Chart.js loader
   let __chartJsReady = null;
@@ -1356,6 +1356,12 @@
     const settingsAddTargetBtn = $('#settingsAddTargetBtn');
     const settingsHistoryBtn = $('#settingsHistoryBtn');
     const shareCardBtnEl = $('#shareCardBtn');
+    // Share modal elements
+    const openShareBtn = document.getElementById('openShareBtn');
+    const shareModal = document.getElementById('shareModal');
+    const closeShareBtn = document.getElementById('closeShareBtn');
+    const doShareBtn = document.getElementById('doShareBtn');
+    const shareExerciseSel = document.getElementById('shareExercise');
     const shareDayBtn = document.getElementById('shareDayBtn');
     const shareWeekBtn = document.getElementById('shareWeekBtn');
     const shareMonthBtn = document.getElementById('shareMonthBtn');
@@ -1428,6 +1434,24 @@
       const id = sel.value;
       const list = loadExercises() || [];
       return list.find(e => String(e.id) === String(id)) || list[0] || null;
+    }
+
+    // Populate Share modal exercise list
+    function populateShareExerciseSelect() {
+      if (!shareExerciseSel) return;
+      const items = loadExercises();
+      shareExerciseSel.innerHTML = '';
+      items.forEach((ex) => {
+        const opt = document.createElement('option');
+        opt.value = ex.id;
+        opt.textContent = ex.exerciseName || 'Exercise';
+        shareExerciseSel.appendChild(opt);
+      });
+      // default selection mirrors currentExerciseId or first item
+      if (items.length) {
+        const selId = (currentExerciseId && items.some(i => i.id === currentExerciseId)) ? currentExerciseId : items[0].id;
+        shareExerciseSel.value = selId;
+      }
     }
 
     // --- Share helpers (period summaries as image) ---
@@ -1543,36 +1567,22 @@
       try { showToast?.('Image downloaded'); } catch {}
     }
 
-    // Settings accordion init
-    function initSettingsAccordion() {
-      const container = settingsModal?.querySelector('#settingsAccordion');
-      if (!container) return;
-      const sections = Array.from(container.querySelectorAll('.acc-section'));
-      const desired = getAccOpen();
-      sections.forEach((section) => {
-        const key = section.getAttribute('data-key') || '';
-        const header = section.querySelector('.acc-header');
-        const panel = section.querySelector('.acc-panel');
+    // Settings accordion init: collapsed by default; toggle open/close on header click
+    function initSettingsAccordion(){
+      const sections = Array.from(document.querySelectorAll('#settingsModal .acc-section'));
+      sections.forEach(sec=>{
+        const header = sec.querySelector('.acc-header');
+        const panel  = sec.querySelector('.acc-panel');
         if (!header || !panel) return;
+        sec.classList.remove('open'); // start collapsed
+        header.setAttribute('aria-expanded','false');
         if (!header.dataset.wired) {
-          header.addEventListener('click', () => {
-            sections.forEach((s) => {
-              const h = s.querySelector('.acc-header');
-              s.classList.remove('open');
-              if (h) h.setAttribute('aria-expanded', 'false');
-            });
-            section.classList.add('open');
-            header.setAttribute('aria-expanded', 'true');
-            setAccOpen(key);
+          header.addEventListener('click', ()=>{
+            const isOpen = sec.classList.contains('open');
+            sections.forEach(s=>{ s.classList.remove('open'); s.querySelector('.acc-header')?.setAttribute('aria-expanded','false'); });
+            if (!isOpen){ sec.classList.add('open'); header.setAttribute('aria-expanded','true'); }
           });
           header.dataset.wired = '1';
-        }
-        if (key === desired) {
-          section.classList.add('open');
-          header.setAttribute('aria-expanded', 'true');
-        } else {
-          section.classList.remove('open');
-          header.setAttribute('aria-expanded', 'false');
         }
       });
     }
@@ -1603,6 +1613,24 @@
       document.body.classList.remove('no-scroll');
     }
 
+    // Share Modal helpers
+    function openShareModal() {
+      populateShareExerciseSelect();
+      // default period = day
+      const segBtns = shareModal?.querySelectorAll('.seg-btn') || [];
+      segBtns.forEach(b => b.classList.toggle('active', b.dataset.period === 'day'));
+      // default destination = copy (no-op styling, but track state via class)
+      const destBtns = shareModal?.querySelectorAll('.share-dests .dest') || [];
+      let first = true;
+      destBtns.forEach(b => { b.classList.toggle('active', b.dataset.dest === 'copy' && first); });
+      shareModal?.classList.remove('hidden');
+      document.body.classList.add('no-scroll');
+    }
+    function closeShareModal() {
+      shareModal?.classList.add('hidden');
+      document.body.classList.remove('no-scroll');
+    }
+
     // Back-compat wrappers
     function openSettings() { openSettingsModal(); }
     function closeSettings() { closeSettingsModal(); }
@@ -1615,7 +1643,10 @@
 
     // Close on Escape and overlay click
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !settingsModal?.classList.contains('hidden')) closeSettingsModal();
+      if (e.key === 'Escape') {
+        if (!shareModal?.classList.contains('hidden')) { closeShareModal(); return; }
+        if (!settingsModal?.classList.contains('hidden')) { closeSettingsModal(); return; }
+      }
     });
     settingsModal?.addEventListener('click', (e) => {
       if (e.target === settingsModal) closeSettingsModal();
@@ -1879,6 +1910,131 @@
     shareDayBtn?.addEventListener('click',  () => { const ex = getSelectedExercise(); if (ex) shareProgress(ex, 'day'); });
     shareWeekBtn?.addEventListener('click', () => { const ex = getSelectedExercise(); if (ex) shareProgress(ex, 'week'); });
     shareMonthBtn?.addEventListener('click',() => { const ex = getSelectedExercise(); if (ex) shareProgress(ex, 'month'); });
+
+    // (Share modal wiring moved to wireShareModal IIFE)
+
+    // Populate Share Exercise select and wire modal open/close + period
+    function populateShareExercise(){
+      const sel = document.getElementById('shareExercise');
+      if (!sel) return;
+      const list = loadExercises() || [];
+      sel.innerHTML = '';
+      list.forEach(ex=>{
+        const opt = document.createElement('option');
+        opt.value = ex.id; opt.textContent = ex.exerciseName || 'Exercise';
+        sel.appendChild(opt);
+      });
+    }
+
+    (function wireShareModal(){
+      const openBtn  = document.getElementById('openShareBtn');
+      const modal    = document.getElementById('shareModal');
+      const closeBtn = document.getElementById('closeShareBtn');
+      const segBtns  = () => Array.from(modal.querySelectorAll('.seg-btn'));
+      let currentPeriod = 'day';
+
+      function openShare(){
+        populateShareExercise();
+        currentPeriod = 'day';
+        segBtns().forEach(b=> b.classList.toggle('active', b.dataset.period==='day'));
+        modal.classList.remove('hidden');
+      }
+      function closeShare(){ modal.classList.add('hidden'); }
+
+      openBtn?.addEventListener('click', openShare);
+      closeBtn?.addEventListener('click', closeShare);
+      modal?.addEventListener('click', (e)=>{ if(e.target===modal) closeShare(); });
+
+      // period toggle
+      modal.querySelectorAll('.seg-btn').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          currentPeriod = btn.dataset.period;
+          segBtns().forEach(b=> b.classList.toggle('active', b===btn));
+        });
+      });
+
+      // Expose selected period getter for the share action
+      window.__getShareModalSelection = function(){
+        const sel = document.getElementById('shareExercise');
+        const id  = sel?.value;
+        return { id, period: currentPeriod, close: closeShare };
+      };
+    })();
+
+    // Helper: find exercise by id (non-indexed)
+    function findExerciseById(id){
+      const listNow = loadExercises() || [];
+      return listNow.find(e => String(e.id) === String(id)) || null;
+    }
+
+    // Build site invite link
+    function siteInviteURL(){
+      try { return location.origin + location.pathname; } catch { return location.href; }
+    }
+
+    // Share to destination using existing renderShareCanvas
+    async function doShareTo(dest, ex, period){
+      const canvas = await renderShareCanvas(ex, period);
+      const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+      const fileName = `${(ex.exerciseName||'exercise')}-${period}.png`;
+      const url = URL.createObjectURL(blob);
+      const invite = siteInviteURL();
+
+      // Try Web Share with file
+      try {
+        const file = new File([blob], fileName, { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files:[file] })) {
+          await navigator.share({ files:[file], title: 'My progress', text: `${ex.exerciseName} — ${period}\n${invite}` });
+          URL.revokeObjectURL(url);
+          return;
+        }
+      } catch(_) {}
+
+      // App-specific intents / fallbacks
+      if (dest === 'telegram') {
+        const text = encodeURIComponent(`${ex.exerciseName} — ${period}\n${invite}`);
+        window.open(`https://t.me/share/url?url=${encodeURIComponent(invite)}&text=${text}`, '_blank');
+      } else if (dest === 'whatsapp') {
+        const text = encodeURIComponent(`${ex.exerciseName} — ${period}\n${invite}`);
+        window.open(`https://wa.me/?text=${text}`, '_blank');
+      } else if (dest === 'instagram') {
+        // No web image intent; download and instruct
+        const a = document.createElement('a'); a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); a.remove();
+        try { showToast?.('Image saved. Open Instagram and post the image manually.'); } catch {}
+      } else if (dest === 'copy') {
+        try {
+          await navigator.clipboard.writeText(invite);
+          try { showToast?.('Invite link copied. Downloading image…'); } catch {}
+        } catch {}
+        const a = document.createElement('a'); a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); a.remove();
+      }
+      setTimeout(()=> URL.revokeObjectURL(url), 30000);
+    }
+
+    // Wire destination buttons and final Share button
+    (function wireShareActions(){
+      const shareModal = document.getElementById('shareModal');
+      if (!shareModal) return;
+      const destBtns = shareModal.querySelectorAll('.share-dests .dest');
+      let chosenDest = 'copy';
+      // set default visual state
+      destBtns.forEach(x=> { if (x.dataset.dest === 'copy') x.classList.add('primary'); else x.classList.remove('primary'); });
+      destBtns.forEach(b=>{
+        b.addEventListener('click', ()=>{
+          chosenDest = b.dataset.dest;
+          destBtns.forEach(x=> x.classList.toggle('primary', x===b));
+        });
+      });
+      const doShareBtn = document.getElementById('doShareBtn');
+      doShareBtn?.addEventListener('click', async ()=>{
+        const sel = window.__getShareModalSelection?.();
+        if (!sel) return;
+        const ex = findExerciseById(sel.id);
+        if (!ex) return;
+        await doShareTo(chosenDest, ex, sel.period || 'day');
+        try { sel.close?.(); } catch {}
+      });
+    })();
 
     el.cancelBtn?.addEventListener('click', closeModal);
 

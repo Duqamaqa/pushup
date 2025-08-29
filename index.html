@@ -98,6 +98,7 @@
     <div class="modal-content" role="dialog">
       <div class="modal-header">
         <h2>Settings</h2>
+        <button id="openShareBtn" class="btn primary">Share</button>
         <button id="closeSettingsBtn" class="icon-btn" aria-label="Close">&times;</button>
       </div>
 
@@ -161,7 +162,7 @@
 
         <!-- PER EXERCISE SECTION -->
         <section class="acc-section" data-key="exercise">
-          <button class="acc-header" type="button" aria-expanded="true">
+          <button class="acc-header" type="button" aria-expanded="false">
             <span>Per Exercise</span>
             <span class="chev" aria-hidden="true">▾</span>
           </button>
@@ -245,5 +246,41 @@
     </div>
   </div>
   <div id="sparkTooltip" class="spark-tooltip"></div>
+
+  <!-- Share Modal -->
+  <div id="shareModal" class="modal hidden">
+    <div class="modal-content">
+      <h2>Share Progress</h2>
+
+      <div class="row">
+        <label class="label">Exercise</label>
+        <select id="shareExercise" class="input wfull"></select>
+      </div>
+
+      <div class="row">
+        <label class="label">Period</label>
+        <div class="seg">
+          <button type="button" class="seg-btn active" data-period="day">Day</button>
+          <button type="button" class="seg-btn" data-period="week">Week</button>
+          <button type="button" class="seg-btn" data-period="month">Month</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <label class="label">Destination</label>
+        <div class="share-dests">
+          <button class="btn dest" data-dest="telegram">Telegram</button>
+          <button class="btn dest" data-dest="whatsapp">WhatsApp</button>
+          <button class="btn dest" data-dest="instagram">Instagram</button>
+          <button class="btn dest" data-dest="copy">Copy Image + Link</button>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="doShareBtn" class="btn primary">Share</button>
+        <button id="closeShareBtn" class="btn">Cancel</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

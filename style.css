@@ -714,3 +714,21 @@ body.no-scroll { overflow: hidden; }
 .about { margin-top: 12px; text-align:center; opacity:.85; font-size:13px; }
 .about-name { font-weight:600; font-size:14px; margin-bottom:4px; }
 .about-version { font-family: ui-monospace, SFMono-Regular, monospace; }
+
+/* Collapse behavior: titles-only when closed */
+#settingsModal .acc-section { overflow: hidden; border-radius: 14px; background: var(--card); }
+#settingsModal .acc-header { width: 100%; display:flex; justify-content:space-between; align-items:center; padding:14px 16px; cursor:pointer; border:0; background:transparent; color:var(--fg); font-weight:600; }
+#settingsModal .acc-panel { max-height: 0; overflow: hidden; transition: max-height .25s ease; padding: 0 16px; }
+#settingsModal .acc-section.open .acc-panel { max-height: 1200px; padding-bottom: 14px; }
+
+/* Share button placement */
+#openShareBtn { margin-left: auto; }
+
+/* Share modal styles */
+.seg { display: grid; grid-auto-flow: column; gap:8px; }
+.seg-btn { padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.15); background:transparent; color:var(--fg); }
+.seg-btn.active { background: var(--accent); color: var(--btn-fg); border-color: transparent; }
+
+.share-dests { display:grid; grid-template-columns: repeat(2, 1fr); gap:8px; }
+.share-dests .dest { padding:10px 12px; border-radius:10px; }
+@media (max-width:420px){ .share-dests { grid-template-columns: 1fr; } }

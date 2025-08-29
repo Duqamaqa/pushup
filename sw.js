@@ -1,6 +1,6 @@
 // PWA SW v4: precache core, runtime SWR for Chart.js
 // Checklist: lazy Chart.js, cache v4, SWR for CDN
-const CACHE_NAME = 'app-cache-v21';
+const CACHE_NAME = 'app-cache-v6';
 const ASSETS = [
   './',
   './index.html',
@@ -12,20 +12,32 @@ const ASSETS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      const requests = ASSETS.map((url) =>
-        url.startsWith('http') ? new Request(url, { mode: 'no-cors' }) : url
-      );
-      return cache.addAll(requests);
-    }).then(() => self.skipWaiting())
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => {
+        const requests = ASSETS.map((url) =>
+          url.startsWith('http') ? new Request(url, { mode: 'no-cors' }) : url
+        );
+        return cache.addAll(requests);
+      })
+      .then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.map((k) => (k === CACHE_NAME ? null : caches.delete(k))))
-    ).then(() => self.clients.claim())
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(keys.map((k) => (k === CACHE_NAME ? null : caches.delete(k))))
+      )
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window' }))
+      .then((clients) => {
+        for (const client of clients) {
+          client.postMessage({ type: 'sw-updated', cache: CACHE_NAME });
+        }
+      })
   );
 });
 

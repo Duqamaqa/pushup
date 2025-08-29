@@ -1260,9 +1260,18 @@
   document.addEventListener('DOMContentLoaded', () => {
     const commitHashEl = document.getElementById('commitHash');
     if (commitHashEl) {
-      const sha = (window.__COMMIT_HASH__ || 'unknown').toString();
-      commitHashEl.textContent = sha;
-      commitHashEl.title = 'Current deployed commit';
+      (async () => {
+        let sha = (window.__COMMIT_HASH__ || '').toString().trim();
+        if (!sha) {
+          try {
+            const txt = await fetch('commit.js', { cache: 'no-store' }).then((r) => r.text());
+            const m = txt.match(/__COMMIT_HASH__\s*=\s*["']([0-9a-f]+)["']/i);
+            if (m) sha = m[1];
+          } catch {}
+        }
+        commitHashEl.textContent = sha || 'unknown';
+        commitHashEl.title = 'Current deployed commit';
+      })();
     }
     // Theme: detect and apply before rendering
     const savedTheme = localStorage.getItem('theme');

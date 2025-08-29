@@ -1258,6 +1258,12 @@
 
   // ---------- Init & Events ----------
   document.addEventListener('DOMContentLoaded', () => {
+    const commitHashEl = document.getElementById('commitHash');
+    if (commitHashEl) {
+      const sha = (window.__COMMIT_HASH__ || 'unknown').toString();
+      commitHashEl.textContent = sha;
+      commitHashEl.title = 'Current deployed commit';
+    }
     // Theme: detect and apply before rendering
     const savedTheme = localStorage.getItem('theme');
     const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;

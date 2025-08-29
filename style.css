@@ -590,6 +590,9 @@ button.large {
 .ex-extra .extra-input:focus { outline:none; border-color: var(--accent); }
 .ex-extra .extra-apply { padding:10px 14px; border-radius:10px; font-weight:600; }
 
+/* Mono text utility */
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; opacity: .85; }
+
 /* Weekly Summary modal */
 #weeklyModal .modal-content {
   max-width: 480px;

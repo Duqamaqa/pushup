@@ -13,6 +13,8 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <meta name="theme-color" content="#111111" />
+  <script src="commit.js"></script>
+  <script src="app.js" defer></script>
 </head>
 <body>
   <main class="container">
@@ -150,6 +152,10 @@
             <div class="row">
               <button id="toggleDebugBtn" class="btn wfull">Toggle Debug Panel</button>
             </div>
+            <div class="row">
+              <label class="label">Commit</label>
+              <div id="commitHash" class="mono">unknown</div>
+            </div>
           </div>
         </section>
 
@@ -198,7 +204,7 @@
     </div>
   </section>
 
-  <script defer src="app.js"></script>
+  
   <div id="debugPanel" class="hidden">
     <h3>Debug</h3>
     <p id="fpsMeter">FPS: —</p>

@@ -1,10 +1,11 @@
 // PWA SW v4: precache core, runtime SWR for Chart.js
 // Checklist: lazy Chart.js, cache v4, SWR for CDN
-const CACHE_NAME = 'app-cache-v20';
+const CACHE_NAME = 'app-cache-v21';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
+  './commit.js',
   './app.js',
   './manifest.json',
 ];

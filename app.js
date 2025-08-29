@@ -907,7 +907,6 @@
         b.className = 'btn primary';
         b.dataset.amount = String(n);
         b.textContent = `−${n}`;
-        if ((ex.remaining ?? 0) <= 0) b.disabled = true;
         attachQuickStepHandlers(b, ex, n, (updatedEx) => {
           // minimal per-card UI update
           updateExerciseCardView(updatedEx);
@@ -925,6 +924,54 @@
         qsWrap.appendChild(b);
       });
       card.append(qsWrap);
+
+      // Inline extra amount input row
+      const extraWrap = document.createElement('div');
+      extraWrap.className = 'ex-extra';
+      extraWrap.innerHTML = `
+        <input class="extra-input" type="number" min="1" placeholder="Add extra..." />
+        <button class="btn extra-apply">+ Add</button>
+      `;
+      card.append(extraWrap);
+
+      // Wire extra controls
+      const extraInput = qs(card, '.extra-input');
+      const extraBtn = qs(card, '.extra-apply');
+      const applyExtra = () => {
+        const v = parseInt(extraInput?.value, 10);
+        if (!Number.isFinite(v) || v <= 0) return;
+        const today = todayStrUTC();
+        applyDailyRollover(ex);
+        ex.remaining = Math.max(0, Number(ex.remaining || 0) - v);
+        const ent = (ex.history[today] ||= { planned: 0, done: 0 });
+        ent.done += v;
+        if (extraInput) extraInput.value = '';
+        // persist and update UI in place
+        persistExercise(ex);
+        updateExerciseCardView(ex);
+        updateWeeklyBar(card, ex);
+        // flash ring
+        const ringEl = card.querySelector('.ring');
+        if (ringEl) {
+          ringEl.classList.remove('flash-success');
+          requestAnimationFrame(() => {
+            ringEl.classList.add('flash-success');
+            setTimeout(() => ringEl.classList.remove('flash-success'), 350);
+          });
+        }
+        // optional confetti when first completing for today
+        if ((ex.remaining || 0) <= 0) {
+          const today2 = todayStrUTC();
+          if ((ex._confettiDoneForToday || '') !== today2) {
+            try { ex._confettiDoneForToday = today2; } catch {}
+            persistExercise(ex);
+            try { launchConfetti(); } catch {}
+          }
+        }
+        try { showToast && showToast(`+${v} logged`); } catch {}
+      };
+      if (extraBtn) extraBtn.addEventListener('click', applyExtra);
+      if (extraInput) extraInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') applyExtra(); });
       containerFrag.appendChild(card);
 
       // Handlers per card
@@ -1101,7 +1148,7 @@
         const cfg = getLbConfig();
         if (cfg.name && cfg.url && cfg.key) upsertScore(cfg.name, computeWeeklyTotalAll());
       } catch {}
-      // Confetti + disable buttons when done
+      // Confetti when first reaching done today (do not disable buttons)
       if ((ex.remaining || 0) <= 0) {
         const today2 = todayStrUTC();
         if ((ex._confettiDoneForToday || '') !== today2) {
@@ -1109,8 +1156,6 @@
           persistExercise(ex);
           try { launchConfetti(); } catch {}
         }
-        const card = btn.closest('.ex-card');
-        if (card) Array.from(card.querySelectorAll('.ex-buttons button')).forEach(b => b.disabled = true);
       }
     });
 
@@ -1872,9 +1917,7 @@
       badgesRow.appendChild(s);
     });
 
-    // enable/disable quick-step buttons based on remaining
-    const qsBtns = card.querySelectorAll('.ex-buttons button');
-    qsBtns.forEach(b => { b.disabled = (ex.remaining || 0) <= 0; });
+    // Keep quick-step buttons always enabled to allow over-goal logging
 
     // Redraw sparkline (last 7 days done)
     const spark = card.querySelector('.ex-sparkline');

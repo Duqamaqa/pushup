@@ -565,7 +565,7 @@ button.large {
   display:inline-flex; align-items:center; justify-content:center;
   padding: 12px 10px; border-radius: 12px; font-weight: 600;
 }
-.ex-buttons .btn[disabled] { opacity: 0.5; }
+/* Allow quick-step buttons to remain fully interactive even when remaining == 0 */
 
 /* Small pill */
 .pill { font-size:12px; padding:3px 8px; border-radius:999px; background:rgba(255,255,255,.08); }
@@ -583,6 +583,12 @@ button.large {
   pointer-events: none;
   z-index: 9999;
 }
+
+/* Inline extra logging row */
+.ex-extra { display:grid; grid-template-columns: 1fr auto; gap:8px; margin-top:8px; }
+.ex-extra .extra-input { padding:10px; border-radius:10px; background:rgba(255,255,255,0.06); color:var(--fg); border:1px solid rgba(255,255,255,0.08); }
+.ex-extra .extra-input:focus { outline:none; border-color: var(--accent); }
+.ex-extra .extra-apply { padding:10px 14px; border-radius:10px; font-weight:600; }
 
 /* Weekly Summary modal */
 #weeklyModal .modal-content {

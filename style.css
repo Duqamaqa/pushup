@@ -657,6 +657,10 @@ button.large {
   background: linear-gradient(90deg, var(--accent), rgba(76,141,255,0.5));
   transition: width .35s ease;
 }
+
+/* Share buttons row: 3-up, stack on small screens */
+.hstack { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; }
+@media (max-width:420px){ .hstack { grid-template-columns: 1fr; } }
 .wp-label { text-align:center; font-size: 13px; opacity:.9; }
 .week-progress.ok   .wp-fill { background: linear-gradient(90deg, #2ecc71, #77e8a1); }
 .week-progress.warn .wp-fill { background: linear-gradient(90deg, #f1c40f, #ffd666); }

@@ -1356,6 +1356,9 @@
     const settingsAddTargetBtn = $('#settingsAddTargetBtn');
     const settingsHistoryBtn = $('#settingsHistoryBtn');
     const shareCardBtnEl = $('#shareCardBtn');
+    const shareDayBtn = document.getElementById('shareDayBtn');
+    const shareWeekBtn = document.getElementById('shareWeekBtn');
+    const shareMonthBtn = document.getElementById('shareMonthBtn');
     const toggleDebugBtn = $('#toggleDebugBtn');
     const debugPanel = $('#debugPanel');
 
@@ -1417,6 +1420,127 @@
       } else {
         currentExerciseId = null;
       }
+    }
+
+    function getSelectedExercise(){
+      const sel = document.getElementById('exerciseSelect');
+      if (!sel) return null;
+      const id = sel.value;
+      const list = loadExercises() || [];
+      return list.find(e => String(e.id) === String(id)) || list[0] || null;
+    }
+
+    // --- Share helpers (period summaries as image) ---
+    function periodDates(period){
+      const today = todayStrUTC();
+      if (period==='day')   return [today];
+      if (period==='week')  return getRecentDays(7);
+      if (period==='month') return getRecentDays(30);
+      return [today];
+    }
+
+    function sumDone(ex, days){
+      let s=0; for (const d of days) s += (ex.history?.[d]?.done)||0; return s;
+    }
+    function sumPlanned(ex, days){
+      let s=0; for (const d of days) s += (ex.history?.[d]?.planned)||0; return s;
+    }
+
+    async function renderShareCanvas(ex, period){
+      const days = periodDates(period);
+      const totalDone = sumDone(ex, days);
+      const totalPlanned = sumPlanned(ex, days);
+      const rate = totalPlanned>0 ? Math.round((totalDone/totalPlanned)*100) : 0;
+      const unit = ex.unit || 'reps';
+
+      // Canvas
+      const W=1080, H=1080, P=64;
+      const c = document.createElement('canvas'); c.width=W; c.height=H;
+      const ctx = c.getContext('2d');
+
+      // Colors from CSS
+      const cs = getComputedStyle(document.documentElement);
+      const bg  = cs.getPropertyValue('--bg') || '#0b0f1a';
+      const fg  = cs.getPropertyValue('--fg') || '#ffffff';
+      const acc = cs.getPropertyValue('--accent') || '#4c8dff';
+
+      // background
+      ctx.fillStyle = bg.trim(); ctx.fillRect(0,0,W,H);
+
+      // title
+      ctx.fillStyle = fg.trim(); ctx.font = 'bold 64px system-ui, -apple-system, Segoe UI, Roboto';
+      ctx.fillText(ex.exerciseName || 'Exercise', P, P+40);
+
+      // subtitle (period)
+      ctx.font = '500 40px system-ui';
+      const label = period==='day' ? 'Today' : (period==='week' ? 'This Week' : 'Last 30 Days');
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillText(label, P, P+100);
+
+      // totals
+      ctx.font = 'bold 120px system-ui';
+      ctx.fillStyle = acc.trim();
+      ctx.fillText(`${totalDone} ${unit}`, P, P+230);
+
+      ctx.font = '500 36px system-ui';
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.fillText(totalPlanned>0 ? `of ${totalPlanned} ${unit} (${rate}%)` : `logged`, P, P+280);
+
+      // little bars for each day
+      const barW = Math.floor((W - P*2) / Math.max(7, days.length));
+      const baseY = H - P - 60;
+      const maxVal = Math.max(1, ...days.map(d => (ex.history?.[d]?.done)||0));
+      ctx.save();
+      for (let i=0;i<days.length;i++){
+        const val = (ex.history?.[days[i]]?.done)||0;
+        const h = Math.round((val / maxVal) * 260);
+        const x = P + i*barW;
+        ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(x, baseY-260, barW-6, 260);
+        ctx.fillStyle = acc.trim(); ctx.fillRect(x, baseY-h, barW-6, h);
+      }
+      ctx.restore();
+
+      // footer
+      ctx.font = '400 28px system-ui';
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      const from = days[0], to = days[days.length-1];
+      ctx.fillText(`${from} → ${to}`, P, H - P);
+
+      return c;
+    }
+
+    async function shareProgress(ex, period){
+      const canvas = await renderShareCanvas(ex, period);
+      // Try Web Share with image file
+      try {
+        const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+        const file = new File([blob], `${(ex.exerciseName||'exercise')}-${period}.png`, { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files:[file] })) {
+          await navigator.share({ files:[file], title: 'My progress', text: `${ex.exerciseName}: ${period} progress` });
+          return;
+        }
+      } catch(_) {}
+
+      // Text-only share fallback when files are not supported
+      try {
+        if (navigator.share) {
+          const days = periodDates(period);
+          const totalDone = sumDone(ex, days);
+          const totalPlanned = sumPlanned(ex, days);
+          const unit = ex.unit || 'reps';
+          const label = period==='day' ? 'Today' : (period==='week' ? 'This Week' : 'Last 30 Days');
+          const msg = `${ex.exerciseName} — ${label}\n${totalDone} ${unit}${totalPlanned?` of ${totalPlanned} ${unit}`:''}`;
+          await navigator.share({ title: 'My progress', text: msg });
+          return;
+        }
+      } catch(_) {}
+
+      // Fallback: open image in new tab / download
+      const url = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = url; a.download = `${(ex.exerciseName||'exercise')}-${period}.png`;
+      document.body.appendChild(a); a.click(); a.remove();
+      try { showToast?.('Image downloaded'); } catch {}
     }
 
     // Settings accordion init
@@ -1750,6 +1874,11 @@
       if (!ex) return;
       try { renderShareCard(ex); } catch (e) { console.error(e); }
     });
+
+    // Share summary buttons
+    shareDayBtn?.addEventListener('click',  () => { const ex = getSelectedExercise(); if (ex) shareProgress(ex, 'day'); });
+    shareWeekBtn?.addEventListener('click', () => { const ex = getSelectedExercise(); if (ex) shareProgress(ex, 'week'); });
+    shareMonthBtn?.addEventListener('click',() => { const ex = getSelectedExercise(); if (ex) shareProgress(ex, 'month'); });
 
     el.cancelBtn?.addEventListener('click', closeModal);
 

@@ -1278,6 +1278,12 @@
       el.title = sha ? 'Current deployed commit' : 'Commit not found (likely cache or deploy issue)';
     })();
 
+    // Commit message (if present)
+    const msgEl = document.getElementById('commitMsg');
+    if (msgEl && window.__COMMIT_MSG__) {
+      msgEl.textContent = window.__COMMIT_MSG__;
+    }
+
     // Diagnostics: commit file, SW caches, build time
     (async () => {
       const cf = document.getElementById('commitFile');

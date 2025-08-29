@@ -27,8 +27,13 @@ jobs:
         run: |
           SHORT_SHA=$(git rev-parse --short HEAD)
           FULL_SHA=$(git rev-parse HEAD)
-          NOW_ISO=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          echo "window.__COMMIT_HASH__='${SHORT_SHA}';window.__COMMIT_FULL__='${FULL_SHA}';window.__BUILD_TIME__='${NOW_ISO}';" > commit.js
+          COMMIT_MSG=$(git log -1 --pretty=%s)
+          cat > commit.js <<EOF
+          // Auto-generated at deploy time
+          window.__COMMIT_HASH__ = "${SHORT_SHA}";
+          window.__COMMIT_FULL__ = "${FULL_SHA}";
+          window.__COMMIT_MSG__  = "${COMMIT_MSG}";
+          EOF
           cp commit.js "commit.${SHORT_SHA}.js"
           # Ensure index.html references versioned file; if not present, at least commit.js exists
           if grep -qE '<script[^>]+commit\.[^"]+\.js' index.html; then

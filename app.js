@@ -1277,6 +1277,30 @@
       el.textContent = sha || 'unknown';
       el.title = sha ? 'Current deployed commit' : 'Commit not found (likely cache or deploy issue)';
     })();
+
+    // Diagnostics: commit file, SW caches, build time
+    (async () => {
+      const cf = document.getElementById('commitFile');
+      const sc = document.getElementById('swCaches');
+      const bt = document.getElementById('buildTime');
+
+      try {
+        const s = Array.from(document.scripts).find(x => /commit(\.[0-9a-f]+)?\.js$/.test(x.src || ''));
+        if (cf) cf.textContent = s ? new URL(s.src).pathname.split('/').pop() : 'not found';
+      } catch { if (cf) cf.textContent = 'error'; }
+
+      if (sc && 'caches' in window) {
+        try {
+          const keys = await caches.keys();
+          sc.textContent = (keys && keys.length) ? keys.join(', ') : 'none';
+        } catch { sc.textContent = 'error'; }
+      }
+
+      try {
+        const t = (window.__BUILD_TIME__ || new Date().toISOString());
+        if (bt) bt.textContent = t;
+      } catch { if (bt) bt.textContent = 'error'; }
+    })();
     // Theme: detect and apply before rendering
     const savedTheme = localStorage.getItem('theme');
     const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -1296,6 +1320,7 @@
     const lbKey = document.getElementById('lbKey');
     const saveLbCfgBtn = document.getElementById('saveLbCfgBtn');
     const openLeaderboardBtn = document.getElementById('openLeaderboardBtn');
+    const forceReloadBtn = document.getElementById('forceReloadBtn');
     const exerciseSelect = $('#exerciseSelect');
     const customAmount = $('#customAmount');
     const applyCustomBtn = $('#applyCustomBtn');
@@ -1460,6 +1485,28 @@
         }
       });
     }
+
+    // Force update: unregister SWs, clear caches, bust URL and reload
+    forceReloadBtn?.addEventListener('click', async () => {
+      try {
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          for (const r of regs) { try { await r.unregister(); } catch {} }
+        }
+      } catch {}
+      try {
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          for (const k of keys) { try { await caches.delete(k); } catch {} }
+        }
+      } catch {}
+      try {
+        const v = Date.now();
+        location.href = location.pathname + '?v=' + v;
+      } catch {
+        location.reload();
+      }
+    });
 
     // Theme toggle wiring (modal)
     darkToggle?.addEventListener('change', () => {
@@ -1783,6 +1830,16 @@
       navigator.serviceWorker.ready.then(() => {
         updateCacheSize();
       }).catch(() => {});
+      // Listen for SW activation notifications
+      try {
+        navigator.serviceWorker.addEventListener('message', (e) => {
+          if (e && e.data && e.data.type === 'sw-updated') {
+            try { showToast?.('Updated — tap to reload'); } catch {}
+            const t = document.getElementById('toast');
+            t?.addEventListener('click', () => location.reload());
+          }
+        });
+      } catch {}
     }
   });
 

@@ -1,6 +1,6 @@
 // PWA SW: precache core, runtime SWR for Chart.js
-// Checklist: lazy Chart.js, cache v7, SWR for CDN
-const CACHE_NAME = 'app-cache-v7';
+// Checklist: lazy Chart.js, cache v8, SWR for CDN
+const CACHE_NAME = 'app-cache-v8';
 const ASSETS = [
   './',
   './index.html',
@@ -10,35 +10,27 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => {
-        // Do not include any versioned commit files in precache
-        const requests = ASSETS.map((url) =>
-          url.startsWith('http') ? new Request(url, { mode: 'no-cors' }) : url
-        );
-        return cache.addAll(requests);
-      })
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    // Do not include any versioned commit files in precache
+    const requests = ASSETS.map((url) =>
+      url.startsWith('http') ? new Request(url, { mode: 'no-cors' }) : url
+    );
+    await cache.addAll(requests);
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(keys.map((k) => (k === CACHE_NAME ? null : caches.delete(k))))
-      )
-      .then(() => self.clients.claim())
-      .then(() => self.clients.matchAll({ type: 'window' }))
-      .then((clients) => {
-        for (const client of clients) {
-          client.postMessage({ type: 'sw-updated', cache: CACHE_NAME });
-        }
-      })
-  );
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)));
+    await self.clients.claim();
+    const clients = await self.clients.matchAll({ includeUncontrolled: true });
+    for (const c of clients) {
+      try { c.postMessage({ type: 'sw-updated' }); } catch {}
+    }
+  })());
 });
 
 // Cache-first, then update in background (stale-while-revalidate-ish)
@@ -47,11 +39,9 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return; // only cache GET
 
   const url = new URL(req.url);
-  // Always bypass cache for versioned commit files (fresh fetch only)
-  if (/\/commit\.[0-9a-f]{7,}\.js$/.test(url.pathname)) {
-    event.respondWith(
-      fetch(event.request, { cache: 'no-store' }).catch(() => fetch(event.request))
-    );
+  // Always bypass cache for commit files (versioned or fallback)
+  if (/commit(\.[0-9a-f]+)?\.js$/.test(url.pathname)) {
+    event.respondWith(fetch(event.request, { cache: 'no-store' }));
     return;
   }
   // Runtime SWR cache for Chart.js CDN

@@ -23,23 +23,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Generate commit.<sha>.js and patch index.html
+      - name: Generate commit files
         run: |
           SHORT_SHA=$(git rev-parse --short HEAD)
           FULL_SHA=$(git rev-parse HEAD)
-          FILENAME="commit.${SHORT_SHA}.js"
-          # write versioned commit file
-          cat > "${FILENAME}" <<EOF
-          // Auto-generated at deploy time
-          window.__COMMIT_HASH__ = "${SHORT_SHA}";
-          window.__COMMIT_FULL__ = "${FULL_SHA}";
-          EOF
-          # ensure index.html references this exact file (replace any previous commit*.js)
-          # if a commit.*.js line exists, replace; otherwise, insert before app.js
+          NOW_ISO=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          echo "window.__COMMIT_HASH__='${SHORT_SHA}';window.__COMMIT_FULL__='${FULL_SHA}';window.__BUILD_TIME__='${NOW_ISO}';" > commit.js
+          cp commit.js "commit.${SHORT_SHA}.js"
+          # Ensure index.html references versioned file; if not present, at least commit.js exists
           if grep -qE '<script[^>]+commit\.[^"]+\.js' index.html; then
-            sed -E -i "s#<script[^>]+commit\.[^\"]+\.js\"></script>#<script src=\"${FILENAME}\"></script>#g" index.html
+            sed -E -i "s#<script[^>]+commit\.[^\"]+\.js\"></script>#<script src=\"commit.${SHORT_SHA}.js\"></script>#g" index.html
+          elif grep -qE '<script[^>]+commit\.js' index.html; then
+            # leave as is (fallback)
+            true
           else
-            sed -E -i "s#(<script[^>]*src=\"app\.js\"[^>]*>)#<script src=\"${FILENAME}\"></script>\n\\1#g" index.html
+            sed -E -i "s#(<script[^>]*src=\"app\.js\"[^>]*>)#<script src=\"commit.${SHORT_SHA}.js\"></script>\n\\1#g" index.html
           fi
 
       - name: Setup Pages
@@ -53,4 +51,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-

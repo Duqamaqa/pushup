@@ -1258,21 +1258,25 @@
 
   // ---------- Init & Events ----------
   document.addEventListener('DOMContentLoaded', () => {
-    const commitHashEl = document.getElementById('commitHash');
-    if (commitHashEl) {
-      (async () => {
-        let sha = (window.__COMMIT_HASH__ || '').toString().trim();
-        if (!sha) {
-          try {
-            const txt = await fetch('commit.js', { cache: 'no-store' }).then((r) => r.text());
+    (async () => {
+      const el = document.getElementById('commitHash');
+      if (!el) return;
+      // read any inline commit value first
+      let sha = (window.__COMMIT_HASH__ || '').toString().trim();
+      // If missing, try to find a script tag that matches commit.*.js and fetch it
+      if (!sha) {
+        try {
+          const s = Array.from(document.scripts).find(sc => /commit\.[0-9a-f]+\.js$/.test(sc.src));
+          if (s) {
+            const txt = await fetch(s.src, { cache: 'no-store' }).then(r => r.text());
             const m = txt.match(/__COMMIT_HASH__\s*=\s*["']([0-9a-f]+)["']/i);
             if (m) sha = m[1];
-          } catch {}
-        }
-        commitHashEl.textContent = sha || 'unknown';
-        commitHashEl.title = 'Current deployed commit';
-      })();
-    }
+          }
+        } catch {}
+      }
+      el.textContent = sha || 'unknown';
+      el.title = sha ? 'Current deployed commit' : 'Commit not found (likely cache or deploy issue)';
+    })();
     // Theme: detect and apply before rendering
     const savedTheme = localStorage.getItem('theme');
     const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;

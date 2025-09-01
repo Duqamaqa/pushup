@@ -109,6 +109,7 @@
   function applyLanguage(lang){
     try {
       const t = I18N[lang] || I18N.en;
+      try { document.documentElement.setAttribute('lang', (I18N[lang] ? lang : 'en')); } catch {}
       // Dark toggle label
       setText(document.querySelector('label[for="darkToggle"]'), t.dark);
       // Share button in Settings header

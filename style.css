@@ -474,7 +474,7 @@ button.large {
 
 /* Accordion */
 .accordion { display: grid; gap: 12px; }
-.acc-section { background: var(--card); border-radius: 14px; box-shadow: 0 0 0 1px rgba(255,255,255,0.06) inset; }
+.acc-section { background: var(--card); border-radius: 14px; border: 1px solid var(--border); }
 .acc-header {
   width: 100%; text-align: left; padding: 14px 16px; background: transparent; border: none; color: var(--fg);
   font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
@@ -738,8 +738,6 @@ body.no-scroll { overflow: hidden; }
 /* Collapse behavior: titles-only when closed */
 #settingsModal .acc-section { overflow: hidden; border-radius: 14px; background: var(--card); }
 #settingsModal .acc-header { width: 100%; display:flex; justify-content:space-between; align-items:center; padding:14px 16px; cursor:pointer; border:0; background:transparent; color:var(--fg); font-weight:700; font-size: 1.05rem; letter-spacing: 0.2px; }
-#settingsModal .acc-header::after { content: '›'; transform: rotate(90deg); transition: transform .2s; opacity: 0.6; }
-#settingsModal .acc-section:not(.open) .acc-header::after { transform: rotate(0deg); }
 #settingsModal .acc-panel { max-height: 0; overflow: hidden; transition: max-height .25s ease; padding: 0 16px; }
 #settingsModal .acc-section.open .acc-panel { max-height: 1200px; padding-bottom: 14px; }
 

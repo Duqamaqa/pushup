@@ -722,10 +722,30 @@
     }
     clearErrors();
     el.modal.hidden = false;
+    try { document.body.classList.add('no-scroll'); } catch {}
+    try { el.modal.querySelector('.modal-card')?.scrollTo({ top: 0, behavior: 'instant' }); } catch {}
+    try {
+      const mc = el.modal.querySelector('.modal-card');
+      const firstInput = mc?.querySelector('input, select, textarea, button');
+      firstInput?.focus({ preventScroll: true });
+    } catch {}
+    // Ensure inputs scroll into view on focus (iOS)
+    (function enhanceInputFocus(){
+      const m = el.modal;
+      if (!m || m.dataset.focusWired === '1') return;
+      const mc = m.querySelector('.modal-card');
+      m.querySelectorAll('input,select,textarea').forEach((node)=>{
+        node.addEventListener('focus', ()=>{
+          setTimeout(()=> { try { node.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch {} }, 100);
+        });
+      });
+      m.dataset.focusWired = '1';
+    })();
   }
 
   function closeModal() {
     el.modal.hidden = true;
+    try { document.body.classList.remove('no-scroll'); } catch {}
     editingId = null;
     el.name.value = '';
     el.daily.value = '';
@@ -735,6 +755,15 @@
     if (el.weeklyGoalInput) el.weeklyGoalInput.value = '';
     if (el.unitSel) el.unitSel.value = 'reps';
     clearErrors();
+  }
+
+  // --- Add/Edit Modal helpers (wrappers) ---
+  function openAddEditModal() {
+    // Default to Add mode when invoked generically
+    openModal('add');
+  }
+  function closeAddEditModal() {
+    closeModal();
   }
 
   function setInvalid(input, errEl, invalid) {
@@ -1646,10 +1675,17 @@
       if (e.key === 'Escape') {
         if (!shareModal?.classList.contains('hidden')) { closeShareModal(); return; }
         if (!settingsModal?.classList.contains('hidden')) { closeSettingsModal(); return; }
+        // Close Add/Edit if open
+        const addEditOpen = el.modal && !el.modal.hidden;
+        if (addEditOpen) { closeAddEditModal(); return; }
       }
     });
     settingsModal?.addEventListener('click', (e) => {
       if (e.target === settingsModal) closeSettingsModal();
+    });
+    // Close Add/Edit when tapping overlay (not inside panel)
+    el.modal?.addEventListener('click', (e) => {
+      if (e.target === el.modal) closeAddEditModal();
     });
 
     // Global actions in modal

@@ -721,6 +721,23 @@ body.no-scroll { overflow: hidden; }
 #settingsModal .acc-panel { max-height: 0; overflow: hidden; transition: max-height .25s ease; padding: 0 16px; }
 #settingsModal .acc-section.open .acc-panel { max-height: 1200px; padding-bottom: 14px; }
 
+/* Add/Edit modal content is scrollable on small screens */
+#setup-view .modal-card {
+  max-height: calc(100dvh - 10vh);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Keep action buttons in view on iOS when keyboard shows (small viewport unit) */
+@supports (height: 100svh) {
+  #setup-view .modal-card {
+    max-height: calc(100svh - 10vh);
+  }
+}
+
+/* Avoid scroll chaining to the page behind the modal */
+#setup-view .modal-card { overscroll-behavior: contain; }
+
 /* Share button placement */
 #openShareBtn { margin-left: auto; }
 

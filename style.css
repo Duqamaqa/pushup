@@ -796,3 +796,24 @@ body.no-scroll { overflow: hidden; }
   font-weight: 700;
   border-radius: 12px;
 }
+#langBtn { margin-left: 8px; }
+#langModal .modal-content { max-width: 360px; }
+/* Visible separators in light mode too */
+#settingsModal .acc-section {
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.08) inset;           /* light mode */
+}
+:root.dark #settingsModal .acc-section {
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.08) inset;     /* dark mode */
+}
+
+/* Also add subtle separators between rows */
+#settingsModal .row + .row {
+  border-top: 1px solid rgba(0,0,0,0.06);                 /* light */
+  margin-top: 12px; padding-top: 12px;
+}
+:root.dark #settingsModal .row + .row {
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Make the Dark toggle easy to spot */
+#settingsModal .row .switch { transform: scale(1.05); }

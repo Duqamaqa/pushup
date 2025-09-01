@@ -35,6 +35,8 @@
     { name:'Squats',   unit:'reps', daily:60, steps:[10,20] },
     { name:'Plank',    unit:'min',  daily:5,  steps:[1] },
     { name:'Running',  unit:'km',   daily:3,  steps:[1] },
+    { name:'Pull-ups', unit:'reps', daily:20, steps:[5,10] },
+    { name:'Walking',  unit:'km',   daily:5,  steps:[1] },
   ];
 
   // Daily quotes/tips (stable per day)
@@ -97,6 +99,32 @@
 
   // Minimal text update helper
   function setText(el, value) { if (el && el.textContent !== String(value)) el.textContent = String(value); }
+
+  // --- Tiny i18n ---
+  const I18N = {
+    en: { dark:'Dark', share:'Share', add:'Add New Exercise', global:'Global', perEx:'Per Exercise' },
+    he: { dark:'מצב כהה', share:'שיתוף', add:'הוסף תרגיל חדש', global:'גלובלי', perEx:'לכל תרגיל' },
+    ru: { dark:'Тёмная тема', share:'Поделиться', add:'Добавить упражнение', global:'Глобальные', perEx:'По упражнению' }
+  };
+  function applyLanguage(lang){
+    try {
+      const t = I18N[lang] || I18N.en;
+      // Dark toggle label
+      setText(document.querySelector('label[for="darkToggle"]'), t.dark);
+      // Share button in Settings header
+      setText(document.getElementById('openShareBtn'), t.share);
+      // Add buttons
+      const addBtn = document.getElementById('addExerciseBtn');
+      if (addBtn) setText(addBtn, `+ ${t.add}`);
+      const addTailBtn = document.getElementById('addExerciseTailBtn');
+      if (addTailBtn) setText(addTailBtn, `+ ${t.add}`);
+      // Accordion headers
+      const gHdr = document.querySelector('section.acc-section[data-key="global"] .acc-header span:first-child');
+      if (gHdr) setText(gHdr, t.global);
+      const eHdr = document.querySelector('section.acc-section[data-key="exercise"] .acc-header span:first-child');
+      if (eHdr) setText(eHdr, t.perEx);
+    } catch {}
+  }
 
   // Streak memoization (keyed by exercise id + today)
   const streakCache = new Map();
@@ -252,8 +280,8 @@
     const entry = (ex.history && ex.history[dateStr]) || { planned: 0, done: 0 };
     const planned = Number(entry.planned || 0);
     const done = Number(entry.done || 0);
-    const threshold = Math.min(1, Math.max(0.5, Number(ex.completionThreshold ?? 1.0)));
-    const completed = planned > 0 && done >= planned * threshold;
+    // Completion requires meeting planned exactly (no adjustable threshold)
+    const completed = planned > 0 && done >= planned;
     return { planned, done, completed };
   }
 
@@ -439,15 +467,14 @@
     modalTitle: document.getElementById('modal-title'),
     name: document.getElementById('exerciseName'),
     daily: document.getElementById('dailyTarget'),
-    step: document.getElementById('decrementStep'),
-    streakThreshold: document.getElementById('streakThreshold'),
+    // removed: decrement step & streak threshold inputs
     quickStepsInput: document.getElementById('quickStepsInput'),
     weeklyGoalInput: document.getElementById('weeklyGoalInput'),
     unitSel: document.getElementById('unitSel'),
     templateRow: document.getElementById('templateRow'),
     errName: document.getElementById('exerciseNameError'),
     errDaily: document.getElementById('dailyTargetError'),
-    errStep: document.getElementById('decrementStepError'),
+    // removed: decrement step error element
     saveBtn: document.getElementById('saveExerciseBtn'),
     cancelBtn: document.getElementById('cancelBtn'),
     // History modal
@@ -703,11 +730,7 @@
     }
     el.name.value = exercise ? exercise.exerciseName : '';
     el.daily.value = exercise ? String(exercise.dailyTarget) : '';
-    el.step.value = exercise ? String(exercise.decrementStep) : '';
-    if (el.streakThreshold) {
-      const thr = exercise ? (Number(exercise.completionThreshold ?? 1.0)) : 1.0;
-      el.streakThreshold.value = String(Math.min(1, Math.max(0.5, Number.isFinite(thr) ? thr : 1.0)));
-    }
+    // removed: decrement step & streak threshold prefill
     if (el.unitSel) {
       el.unitSel.value = (exercise && exercise.unit) ? exercise.unit : 'reps';
     }
@@ -749,8 +772,7 @@
     editingId = null;
     el.name.value = '';
     el.daily.value = '';
-    el.step.value = '';
-    if (el.streakThreshold) el.streakThreshold.value = '';
+    // removed: decrement step & streak threshold reset
     if (el.quickStepsInput) el.quickStepsInput.value = '';
     if (el.weeklyGoalInput) el.weeklyGoalInput.value = '';
     if (el.unitSel) el.unitSel.value = 'reps';
@@ -780,7 +802,7 @@
   function clearErrors() {
     setInvalid(el.name, el.errName, false);
     setInvalid(el.daily, el.errDaily, false);
-    setInvalid(el.step, el.errStep, false);
+    // removed: decrement step validation
   }
 
   // ---------- Rendering ----------
@@ -811,7 +833,7 @@
 
     list.forEach((ex) => {
       // defaults for new fields
-      if (ex.completionThreshold == null) ex.completionThreshold = 1.0;
+      // no completion threshold persistence
       if (!ex.history) ex.history = {};
       if (!ex.unit) ex.unit = 'reps';
       ensureWeeklyGoal(ex);
@@ -1050,15 +1072,14 @@
   }
 
   function getQuickStepsFor(ex) {
-    // Parse and sanitize quick steps; fallback derive from decrementStep
+    // Parse and sanitize quick steps; fallback to default set
     const uniq = (arr) => Array.from(new Set(arr));
     let steps = [];
     if (Array.isArray(ex.quickSteps) && ex.quickSteps.length) {
       steps = ex.quickSteps.map(Number).filter((n) => Number.isFinite(n) && n >= 1 && n <= 999);
     }
     if (!steps.length) {
-      const base = Math.max(1, Number(ex.decrementStep || 1));
-      steps = [1, base, base * 2];
+      steps = [5, 10, 20];
     }
     steps = uniq(steps).sort((a, b) => a - b).slice(0, 4);
     return steps;
@@ -1423,6 +1444,13 @@
     const settingsAddTargetBtn = $('#settingsAddTargetBtn');
     const settingsHistoryBtn = $('#settingsHistoryBtn');
     const shareCardBtnEl = $('#shareCardBtn');
+    // Language modal elements
+    const langBtn = document.getElementById('langBtn');
+    const langModal = document.getElementById('langModal');
+    const langSaveBtn = document.getElementById('langSaveBtn');
+    const langCancelBtn = document.getElementById('langCancelBtn');
+    const langSelect = document.getElementById('langSelect');
+    const LANG_KEY = 'appLang';
     // Share modal elements
     const openShareBtn = document.getElementById('openShareBtn');
     const shareModal = document.getElementById('shareModal');
@@ -1436,6 +1464,8 @@
     const debugPanel = $('#debugPanel');
 
     if (darkToggle) darkToggle.checked = isDark;
+    // Initialize language selection (persist for future i18n)
+    try { if (langSelect) langSelect.value = localStorage.getItem(LANG_KEY) || 'en'; } catch {}
     // Rollover for each exercise on load
     const list = loadExercises();
     let changed = false;
@@ -1447,6 +1477,8 @@
     // Handle any URL quick actions before the first render
     handleURLQuickAction();
     renderDashboard();
+    // Apply i18n after initial render so dynamic buttons get updated
+    try { applyLanguage(localStorage.getItem('appLang') || 'en'); } catch {}
     // Initialize storage size meter
     updateStorageSize();
     // Push initial weekly total to leaderboard (if configured)
@@ -1766,6 +1798,17 @@
       }
     });
 
+    // Language modal wiring
+    langBtn?.addEventListener('click', () => langModal?.classList.remove('hidden'));
+    langCancelBtn?.addEventListener('click', () => langModal?.classList.add('hidden'));
+    langModal?.addEventListener('click', (e) => { if (e.target === langModal) langModal.classList.add('hidden'); });
+    langSaveBtn?.addEventListener('click', () => {
+      const v = (langSelect && langSelect.value) || 'en';
+      try { localStorage.setItem(LANG_KEY, v); } catch {}
+      langModal?.classList.add('hidden');
+      try { applyLanguage?.(v); } catch {}
+    });
+
     // Theme toggle wiring (modal)
     darkToggle?.addEventListener('change', () => {
       const useDark = !!darkToggle.checked;
@@ -1860,11 +1903,9 @@
               id: String(ex.id || uuid()),
               exerciseName: String(ex.exerciseName || 'Exercise'),
               dailyTarget: Math.max(1, Number(ex.dailyTarget || 1)),
-              decrementStep: Math.max(1, Number(ex.decrementStep || 1)),
               remaining: Math.max(0, Number(ex.remaining || 0)),
               lastAppliedDate: ex.lastAppliedDate || todayStrUTC(),
               history: ex.history && typeof ex.history === 'object' ? ex.history : {},
-              completionThreshold: Number(ex.completionThreshold ?? 1.0),
               quickSteps: Array.isArray(ex.quickSteps) ? ex.quickSteps.map(Number) : undefined,
               weeklyGoal: Math.max(0, Number(ex.weeklyGoal ?? (Number(ex.dailyTarget || 0) * 7)))
             }));
@@ -2115,13 +2156,7 @@
     el.saveBtn?.addEventListener('click', () => {
       const nameVal = (el.name.value || '').trim();
       const dailyVal = Number(el.daily.value);
-      const stepRaw = el.step.value;
-      const stepVal = Number(stepRaw);
       const unitVal = (el.unitSel?.value || 'reps');
-      const thresholdRaw = (el.streakThreshold?.value || '').trim();
-      let thresholdVal = thresholdRaw === '' ? 1.0 : Number(thresholdRaw);
-      if (!Number.isFinite(thresholdVal)) thresholdVal = 1.0;
-      thresholdVal = Math.min(1, Math.max(0.5, thresholdVal));
       // Parse quick steps
       const qsRaw = (el.quickStepsInput?.value || '').trim();
       let qs = [];
@@ -2138,17 +2173,6 @@
       if (!nameVal) { valid = false; setInvalid(el.name, el.errName, true); } else { setInvalid(el.name, el.errName, false); }
       if (!(Number.isFinite(dailyVal) && dailyVal >= 1)) { valid = false; setInvalid(el.daily, el.errDaily, true); } else { setInvalid(el.daily, el.errDaily, false); }
 
-      // For add, allow blank step -> default 10; for edit, require >=1
-      let finalStep;
-      if (editingId === null) {
-        if (stepRaw === '') { finalStep = 10; setInvalid(el.step, el.errStep, false); }
-        else if (!(Number.isFinite(stepVal) && stepVal >= 1)) { valid = false; setInvalid(el.step, el.errStep, true); }
-        else { finalStep = Math.max(1, stepVal); setInvalid(el.step, el.errStep, false); }
-      } else {
-        if (!(Number.isFinite(stepVal) && stepVal >= 1)) { valid = false; setInvalid(el.step, el.errStep, true); }
-        else { finalStep = Math.max(1, stepVal); setInvalid(el.step, el.errStep, false); }
-      }
-
       if (!valid) return;
 
       const listNow = loadExercises();
@@ -2157,12 +2181,10 @@
           id: uuid(),
           exerciseName: nameVal,
           dailyTarget: Math.max(1, dailyVal),
-          decrementStep: finalStep,
           unit: unitVal || 'reps',
           remaining: Math.max(1, dailyVal),
           lastAppliedDate: todayStrUTC(),
           history: {},
-          completionThreshold: thresholdVal,
           quickSteps: undefined,
           weeklyGoal: 0,
           badges: [],
@@ -2180,11 +2202,8 @@
         if (idx !== -1) {
           listNow[idx].exerciseName = nameVal;
           listNow[idx].dailyTarget = Math.max(1, dailyVal);
-          listNow[idx].decrementStep = finalStep;
           listNow[idx].unit = unitVal || 'reps';
           // keep remaining as-is
-          if (listNow[idx].completionThreshold == null) listNow[idx].completionThreshold = 1.0;
-          listNow[idx].completionThreshold = thresholdVal;
           if (!listNow[idx].history) listNow[idx].history = {};
           // update quick steps
           if (qs.length) listNow[idx].quickSteps = Array.from(new Set(qs)).sort((a,b)=>a-b).slice(0,4);

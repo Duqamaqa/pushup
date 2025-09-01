@@ -737,7 +737,9 @@ body.no-scroll { overflow: hidden; }
 
 /* Collapse behavior: titles-only when closed */
 #settingsModal .acc-section { overflow: hidden; border-radius: 14px; background: var(--card); }
-#settingsModal .acc-header { width: 100%; display:flex; justify-content:space-between; align-items:center; padding:14px 16px; cursor:pointer; border:0; background:transparent; color:var(--fg); font-weight:600; }
+#settingsModal .acc-header { width: 100%; display:flex; justify-content:space-between; align-items:center; padding:14px 16px; cursor:pointer; border:0; background:transparent; color:var(--fg); font-weight:700; font-size: 1.05rem; letter-spacing: 0.2px; }
+#settingsModal .acc-header::after { content: '›'; transform: rotate(90deg); transition: transform .2s; opacity: 0.6; }
+#settingsModal .acc-section:not(.open) .acc-header::after { transform: rotate(0deg); }
 #settingsModal .acc-panel { max-height: 0; overflow: hidden; transition: max-height .25s ease; padding: 0 16px; }
 #settingsModal .acc-section.open .acc-panel { max-height: 1200px; padding-bottom: 14px; }
 
@@ -769,3 +771,28 @@ body.no-scroll { overflow: hidden; }
 .share-dests { display:grid; grid-template-columns: repeat(2, 1fr); gap:8px; }
 .share-dests .dest { padding:10px 12px; border-radius:10px; }
 @media (max-width:420px){ .share-dests { grid-template-columns: 1fr; } }
+
+/* Settings intro */
+.settings-intro {
+  padding: 10px 16px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: rgba(255,255,255,0.8);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+/* Tail add button card */
+.ex-card-add {
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.06) inset;
+  min-height: 84px;
+}
+.add-tail {
+  width: 100%;
+  padding: 12px 14px;
+  font-weight: 700;
+  border-radius: 12px;
+}

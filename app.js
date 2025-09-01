@@ -1029,6 +1029,24 @@
       });
     });
     el.list.appendChild(containerFrag);
+
+    // Append an "Add New Exercise" button at the end of the dashboard
+    try {
+      const dash = el.list || document.getElementById('exerciseListContainer');
+      const addCard = document.createElement('div');
+      addCard.className = 'ex-card ex-card-add';
+      addCard.innerHTML = `
+        <button id="addExerciseTailBtn" class="btn primary add-tail">
+          + Add New Exercise
+        </button>
+      `;
+      dash.appendChild(addCard);
+
+      // wire button to existing add flow
+      document.getElementById('addExerciseTailBtn')?.addEventListener('click', () => {
+        try { openAddEditModal(); } catch {}
+      });
+    } catch {}
   }
 
   function getQuickStepsFor(ex) {

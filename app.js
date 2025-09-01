@@ -65,21 +65,22 @@
     const s = (String(seedStr || '') + todayStrUTC())
       .split('')
       .reduce((a, c) => a + c.charCodeAt(0), 0);
-    return QUOTES[s % QUOTES.length];
+    const keys = ['q1','q2','q3','q4','q5','q6','q7','q8','q9','q10','q11','q12','q13','q14','q15','q16','q17','q18'];
+    return t(keys[s % keys.length]);
   }
 
   // Achievements definitions
   const ACHIEVEMENTS = [
-    { id: 'first_day', title: 'First Day', rule: (ex) => getLifetimeDone(ex) >= 1 },
-    { id: 'week100', title: 'Century Week', rule: (ex) => sumLastNDone(ex, 7) >= 100 },
-    { id: 'streak3', title: '3-Day Streak', rule: (ex) => getStreak(ex) >= 3 },
-    { id: 'streak7', title: '7-Day Streak', rule: (ex) => getStreak(ex) >= 7 },
-    { id: 'total500', title: 'Total 500', rule: (ex) => getLifetimeDone(ex) >= 500 },
-    { id: 'goal100', title: 'Perfect Days ×3', rule: (ex) => countPerfectDays(ex) >= 3 },
+    { id: 'first_day', titleKey: 'ach_first_day', rule: (ex) => getLifetimeDone(ex) >= 1 },
+    { id: 'week100', titleKey: 'ach_week100', rule: (ex) => sumLastNDone(ex, 7) >= 100 },
+    { id: 'streak3', titleKey: 'ach_streak3', rule: (ex) => getStreak(ex) >= 3 },
+    { id: 'streak7', titleKey: 'ach_streak7', rule: (ex) => getStreak(ex) >= 7 },
+    { id: 'total500', titleKey: 'ach_total500', rule: (ex) => getLifetimeDone(ex) >= 500 },
+    { id: 'goal100', titleKey: 'ach_goal100', rule: (ex) => countPerfectDays(ex) >= 3 },
   ];
 
   function ensureBadges(ex){ if (!Array.isArray(ex.badges)) ex.badges = []; return ex.badges; }
-  function getAchievementTitle(id){ const a = ACHIEVEMENTS.find(x => x.id === id); return a ? a.title : id; }
+  function getAchievementTitle(id){ const a = ACHIEVEMENTS.find(x => x.id === id); return a ? t(a.titleKey) : id; }
   function sumLastNDone(ex, n){ const days = getRecentDays(n); let s = 0; for (const d of days) s += Number(ex.history?.[d]?.done || 0); return s; }
   function getLifetimeDone(ex){ let s = 0; if (ex?.history) { for (const k in ex.history){ s += Number(ex.history[k]?.done || 0); } } return s; }
   function countPerfectDays(ex){ let c = 0; if (ex?.history){ for (const k in ex.history){ const ent = ex.history[k] || {}; const p = Number(ent.planned||0); const d = Number(ent.done||0); if (p>0 && d>=p) c++; } } return c; }
@@ -100,27 +101,131 @@
   // Minimal text update helper
   function setText(el, value) { if (el && el.textContent !== String(value)) el.textContent = String(value); }
 
-  // --- Tiny i18n ---
+  // --- i18n ---
+  const LANG_KEY = 'appLang';
+  function getLang(){ try { return localStorage.getItem(LANG_KEY) || 'en'; } catch { return 'en'; } }
+  function setLang(v){ try { localStorage.setItem(LANG_KEY, v); } catch {} }
+
   const I18N = {
     en: {
+      appTitle:'Daily Exercise Counter', header:'My Exercises',
       dark:'Dark', share:'Share', add:'Add New Exercise', global:'Global', perEx:'Per Exercise',
       settings:'Settings', language:'Language', apply:'Apply', cancel:'Cancel', history:'History', close:'Close',
+      edit:'Edit',
       weeklySummary:'Weekly Summary', leaderboard:'Friend Leaderboard', viewHistory:'View History',
-      addTargetAgain:'Add target again', showWeekly:'Show Weekly Summary', toggleDebug:'Toggle Debug Panel'
+      addTargetAgain:'Add target again', showWeekly:'Show Weekly Summary', toggleDebug:'Toggle Debug Panel',
+      version:'Version', debug:'Debug', storage:'Storage: — KB', cache:'Cache: — KB', fps:'FPS',
+      addEditTitle:'Add/Edit Exercise', addTitle:'Add Exercise', editTitle:'Edit Exercise',
+      namePh:'Exercise name (e.g., Push-ups)', nameErr:'Enter an exercise name.',
+      targetPh:'Daily target (e.g., 50)', targetErr:'Daily target must be ≥ 1.',
+      unitLabel:'Unit', unitReps:'reps', unitMin:'min', unitKm:'km',
+      quickStepsLabel:'Quick steps (comma-separated, e.g., 1,5,10)', quickStepsPh:'e.g., 1,5,10',
+      weeklyGoalLabel:'Weekly goal (total reps)', weeklyGoalPh:'e.g., 500', save:'Save',
+      recent:'Recent', trends:'Trends', period:'Period', destination:'Destination',
+      settingsIntro:'⚙️ Customize your app here. Use <b>Global</b> for app-wide settings, and <b>Per Exercise</b> for individual exercise details.',
+      exportJson:'Export JSON', importJson:'Import JSON', hardRefresh:'Hard Refresh (update)',
+      username:'Username', supabaseUrl:'Supabase URL', supabaseKey:'Supabase Key (anon)',
+      saveLb:'Save Leaderboard Settings', openLb:'Friend Leaderboard', addNew:'+ Add New Exercise',
+      showWeeklyNow:'Show Weekly Summary', toggleDebugPanel:'Toggle Debug Panel',
+      selectExercise:'Select exercise', customDecrement:'Custom decrement', customApply:'Apply',
+      shareToday:'Share: Today', shareWeek:'Share: Week', shareMonth:'Share: Month', shareProgressCard:'Share Progress Card',
+      langTitle:'Language', langCancel:'Cancel',
+      doneMsg:'Great job! ✅', daily:'Daily', done:'Done', left:'Left', over:'over',
+      addExtraPh:'Add extra...', addExtraBtn:'+ Add', thisWeek:'This week: {done} / {goal}', fallbackExercise:'Exercise',
+      q1:'Small steps add up. Keep going.', q2:'Form first, speed second.', q3:'Consistency beats intensity.', q4:'Hydrate and breathe between sets.', q5:'Perfect is the enemy of done.', q6:'You only improve what you track.', q7:'A little today beats a lot someday.', q8:'Warm up. Cool down. Recover well.', q9:'Focus on quality reps.', q10:'Set the next micro‑goal now.', q11:'Show up, even for five minutes.', q12:'Don’t break the chain today.', q13:'Your future self thanks you.', q14:'Make it easy to start.', q15:'Celebrate small wins.', q16:'Just one more small push.', q17:'Start light and progress steadily.', q18:'Stack habits: pair with a routine.',
+      ach_first_day:'First Day', ach_week100:'Century Week', ach_streak3:'3-Day Streak', ach_streak7:'7-Day Streak', ach_total500:'Total 500', ach_goal100:'Perfect Days ×3',
+      chartDone:'Done', chartPlanned:'Planned',
+      shareProgress:'Share Progress', labelToday:'Today', labelThisWeek:'This Week', labelLast30:'Last 30 Days',
+      myProgress:'My progress', ofFmt:'of {total} {unit} ({rate}%)', logged:'logged', imageDownloaded:'Image downloaded', couldNotCreateImage:'Could not create image',
+      last7Days:'Last 7 Days', currentStreak:'Current Streak', day:'day', days:'days',
+      pbDay:'PB Day', longestStreakLbl:'Longest Streak', last7:'Last 7 days', last30:'Last 30 days', plannedLbl:'Planned', doneLbl:'Done', achievementsLbl:'Achievements',
+      toastLoggedMinus:'Logged −{n}', toastAddedTimes:'Added +{times}× target',
+      importSuccess:'Import successful', importFailed:'Failed to import JSON: {msg}', lbSaved:'Leaderboard settings saved', cfgSupabaseFirst:'Configure Supabase first',
+      noScores:'No scores yet for this week.', plusLogged:'+{v} logged', minusLogged:'−{n} logged', plusAdded:'+{n} added'
     },
     de: {
+      appTitle:'Täglicher Trainingszähler', header:'Meine Übungen',
       dark:'Dunkel', share:'Teilen', add:'Neue Übung hinzufügen', global:'Global', perEx:'Pro Übung',
       settings:'Einstellungen', language:'Sprache', apply:'Anwenden', cancel:'Abbrechen', history:'Verlauf', close:'Schließen',
-      weeklySummary:'Wöchentliche Übersicht', leaderboard:'Freundes-Rangliste', viewHistory:'Verlauf anzeigen',
-      addTargetAgain:'Ziel erneut hinzufügen', showWeekly:'Wöchentliche Übersicht zeigen', toggleDebug:'Debug-Panel umschalten'
+      edit:'Bearbeiten',
+      weeklySummary:'Wöchentliche Übersicht', leaderboard:'Freundes‑Rangliste', viewHistory:'Verlauf anzeigen',
+      addTargetAgain:'Ziel erneut hinzufügen', showWeekly:'Wöchentliche Übersicht zeigen', toggleDebug:'Debug‑Panel umschalten',
+      version:'Version', debug:'Debug', storage:'Speicher: — KB', cache:'Cache: — KB', fps:'FPS',
+      addEditTitle:'Übung hinzufügen/bearbeiten', addTitle:'Übung hinzufügen', editTitle:'Übung bearbeiten',
+      namePh:'Übungsname (z. B. Liegestütze)', nameErr:'Bitte einen Übungsnamen eingeben.',
+      targetPh:'Tagesziel (z. B. 50)', targetErr:'Tagesziel muss ≥ 1 sein.',
+      unitLabel:'Einheit', unitReps:'Wdh.', unitMin:'Min', unitKm:'km',
+      quickStepsLabel:'Schnelle Schritte (kommagetrennt, z. B. 1,5,10)', quickStepsPh:'z. B. 1,5,10',
+      weeklyGoalLabel:'Wöchentliches Ziel (gesamt)', weeklyGoalPh:'z. B. 500', save:'Speichern',
+      recent:'Neueste', trends:'Trends', period:'Zeitraum', destination:'Ziel',
+      settingsIntro:'⚙️ Passe die App hier an. <b>Global</b> für appweite Einstellungen, <b>Pro Übung</b> für Details je Übung.',
+      exportJson:'JSON exportieren', importJson:'JSON importieren', hardRefresh:'Hartes Aktualisieren (Update)',
+      username:'Benutzername', supabaseUrl:'Supabase‑URL', supabaseKey:'Supabase‑Schlüssel (anon)',
+      saveLb:'Ranglisten‑Einstellungen speichern', openLb:'Freundes‑Rangliste', addNew:'+ Neue Übung hinzufügen',
+      showWeeklyNow:'Wöchentliche Übersicht zeigen', toggleDebugPanel:'Debug‑Panel umschalten',
+      selectExercise:'Übung auswählen', customDecrement:'Benutzerdef. Abzug', customApply:'Anwenden',
+      shareToday:'Teilen: Heute', shareWeek:'Teilen: Woche', shareMonth:'Teilen: Monat', shareProgressCard:'Fortschrittskarte teilen',
+      langTitle:'Sprache', langCancel:'Abbrechen',
+      doneMsg:'Gute Arbeit! ✅', daily:'Täglich', done:'Erledigt', left:'Übrig', over:'darüber',
+      addExtraPh:'Extra hinzufügen…', addExtraBtn:'+ Hinzufügen', thisWeek:'Diese Woche: {done} / {goal}', fallbackExercise:'Übung',
+      q1:'Kleine Schritte summieren sich. Weiter so.', q2:'Form vor Tempo.', q3:'Konstanz schlägt Intensität.', q4:'Trinke und atme zwischen den Sätzen.', q5:'Perfekt ist der Feind des Guten.', q6:'Du verbesserst nur, was du misst.', q7:'Ein bisschen heute schlägt viel irgendwann.', q8:'Aufwärmen. Abkühlen. Gut erholen.', q9:'Fokus auf saubere Wiederholungen.', q10:'Setze jetzt das nächste Mikroziel.', q11:'Erscheine – auch nur fünf Minuten.', q12:'Unterbrich die Kette heute nicht.', q13:'Dein Zukunfts‑Ich dankt dir.', q14:'Mach den Start einfach.', q15:'Feiere kleine Erfolge.', q16:'Nur noch ein kleiner Schub.', q17:'Leicht beginnen, stetig steigern.', q18:'Gewohnheiten stapeln: mit Routine koppeln.',
+      ach_first_day:'Erster Tag', ach_week100:'Hundert‑Woche', ach_streak3:'3‑Tage‑Serie', ach_streak7:'7‑Tage‑Serie', ach_total500:'Insgesamt 500', ach_goal100:'Perfekte Tage ×3',
+      chartDone:'Erledigt', chartPlanned:'Geplant',
+      shareProgress:'Fortschritt teilen', labelToday:'Heute', labelThisWeek:'Diese Woche', labelLast30:'Letzte 30 Tage',
+      myProgress:'Mein Fortschritt', ofFmt:'von {total} {unit} ({rate}%)', logged:'erfasst', imageDownloaded:'Bild heruntergeladen', couldNotCreateImage:'Bild konnte nicht erstellt werden',
+      last7Days:'Letzte 7 Tage', currentStreak:'Aktuelle Serie', day:'Tag', days:'Tage',
+      pbDay:'Bester Tag', longestStreakLbl:'Längste Serie', last7:'Letzte 7 Tage', last30:'Letzte 30 Tage', plannedLbl:'Geplant', doneLbl:'Erledigt', achievementsLbl:'Erfolge',
+      toastLoggedMinus:'−{n} erfasst', toastAddedTimes:'+{times}× Ziel hinzugefügt',
+      importSuccess:'Import erfolgreich', importFailed:'Import fehlgeschlagen: {msg}', lbSaved:'Ranglisten‑Einstellungen gespeichert', cfgSupabaseFirst:'Zuerst Supabase konfigurieren',
+      noScores:'Noch keine Werte für diese Woche.', plusLogged:'+{v} erfasst', minusLogged:'−{n} erfasst', plusAdded:'+{n} hinzugefügt'
     },
     ru: {
+      appTitle:'Ежедневный счётчик упражнений', header:'Мои упражнения',
       dark:'Тёмная тема', share:'Поделиться', add:'Добавить упражнение', global:'Глобальные', perEx:'По упражнению',
       settings:'Настройки', language:'Язык', apply:'Применить', cancel:'Отмена', history:'История', close:'Закрыть',
-      weeklySummary:'Еженедельная сводка', leaderboard:'Таблица друзей', viewHistory:'Открыть историю',
-      addTargetAgain:'Добавить цель ещё раз', showWeekly:'Показать недельную сводку', toggleDebug:'Панель отладки'
+      edit:'Редактировать',
+      weeklySummary:'Недельная сводка', leaderboard:'Таблица друзей', viewHistory:'Открыть историю',
+      addTargetAgain:'Добавить цель ещё раз', showWeekly:'Показать недельную сводку', toggleDebug:'Панель отладки',
+      version:'Версия', debug:'Отладка', storage:'Хранилище: — КБ', cache:'Кэш: — КБ', fps:'FPS',
+      addEditTitle:'Добавить/редактировать упражнение', addTitle:'Добавить упражнение', editTitle:'Редактировать упражнение',
+      namePh:'Название (например, Отжимания)', nameErr:'Введите название упражнения.',
+      targetPh:'Дневная цель (например, 50)', targetErr:'Дневная цель должна быть ≥ 1.',
+      unitLabel:'Единица', unitReps:'повт.', unitMin:'мин', unitKm:'км',
+      quickStepsLabel:'Быстрые шаги (через запятую, напр., 1,5,10)', quickStepsPh:'напр., 1,5,10',
+      weeklyGoalLabel:'Недельная цель (всего)', weeklyGoalPh:'напр., 500', save:'Сохранить',
+      recent:'Недавнее', trends:'Тренды', period:'Период', destination:'Куда',
+      settingsIntro:'⚙️ Настройте приложение здесь. <b>Глобальные</b> — для всего приложения, <b>По упражнению</b> — для отдельных упражнений.',
+      exportJson:'Экспорт JSON', importJson:'Импорт JSON', hardRefresh:'Жёсткое обновление (обновить)',
+      username:'Имя пользователя', supabaseUrl:'Supabase URL', supabaseKey:'Ключ Supabase (anon)',
+      saveLb:'Сохранить настройки таблицы', openLb:'Таблица друзей', addNew:'+ Добавить упражнение',
+      showWeeklyNow:'Показать недельную сводку', toggleDebugPanel:'Переключить панель отладки',
+      selectExercise:'Выбрать упражнение', customDecrement:'Произвольное уменьшение', customApply:'Применить',
+      shareToday:'Поделиться: Сегодня', shareWeek:'Поделиться: Неделя', shareMonth:'Поделиться: Месяц', shareProgressCard:'Поделиться карточкой',
+      langTitle:'Язык', langCancel:'Отмена',
+      doneMsg:'Отличная работа! ✅', daily:'Дневная', done:'Сделано', left:'Осталось', over:'сверх',
+      addExtraPh:'Добавить ещё…', addExtraBtn:'+ Добавить', thisWeek:'На этой неделе: {done} / {goal}', fallbackExercise:'Упражнение',
+      q1:'Маленькие шаги складываются. Продолжайте.', q2:'Техника прежде скорости.', q3:'Постоянство важнее интенсивности.', q4:'Пейте воду и дышите между подходами.', q5:'Идеальное — враг сделанного.', q6:'Улучшаешь то, что отслеживаешь.', q7:'Немного сегодня лучше, чем много когда‑нибудь.', q8:'Разминайтесь. Заминка. Восстановление.', q9:'Фокус на качестве повторов.', q10:'Поставьте следующее микро‑цель сейчас.', q11:'Появись, даже на пять минут.', q12:'Не прерывай цепочку сегодня.', q13:'Будущий ты скажет спасибо.', q14:'Сделай старт простым.', q15:'Празднуй маленькие победы.', q16:'Ещё одно маленькое усилие.', q17:'Начинай легко и прогрессируй.', q18:'Связывай привычки с рутиной.',
+      ach_first_day:'Первый день', ach_week100:'Сотня за неделю', ach_streak3:'Серия 3 дня', ach_streak7:'Серия 7 дней', ach_total500:'Итого 500', ach_goal100:'Идеальные дни ×3',
+      chartDone:'Сделано', chartPlanned:'Запланировано',
+      shareProgress:'Поделиться прогрессом', labelToday:'Сегодня', labelThisWeek:'Эта неделя', labelLast30:'Последние 30 дней',
+      myProgress:'Мой прогресс', ofFmt:'из {total} {unit} ({rate}%)', logged:'записано', imageDownloaded:'Изображение скачано', couldNotCreateImage:'Не удалось создать изображение',
+      last7Days:'Последние 7 дней', currentStreak:'Текущая серия', day:'день', days:'дней',
+      pbDay:'Рекордный день', longestStreakLbl:'Самая длинная серия', last7:'Последние 7 дней', last30:'Последние 30 дней', plannedLbl:'Запланировано', doneLbl:'Сделано', achievementsLbl:'Достижения',
+      toastLoggedMinus:'Записано −{n}', toastAddedTimes:'Добавлено +{times}× цель',
+      importSuccess:'Импорт выполнен', importFailed:'Не удалось импортировать JSON: {msg}', lbSaved:'Настройки таблицы сохранены', cfgSupabaseFirst:'Сначала настройте Supabase',
+      noScores:'Пока нет результатов за эту неделю.', plusLogged:'+{v} записано', minusLogged:'−{n} записано', plusAdded:'+{n} добавлено'
     }
   };
+
+  function t(key, params){
+    const lang = getLang();
+    const dict = I18N[lang] || I18N.en;
+    let str = dict[key] != null ? dict[key] : (I18N.en[key] != null ? I18N.en[key] : key);
+    if (params && typeof str === 'string') {
+      Object.entries(params).forEach(([k,v]) => { str = str.replace(new RegExp('\\{'+k+'\\}', 'g'), String(v)); });
+    }
+    return str;
+  }
 
   function flagFor(lang){
     if (lang === 'de') return '🇩🇪';
@@ -129,58 +234,80 @@
   }
   function applyLanguage(lang){
     try {
-      const t = I18N[lang] || I18N.en;
+      const dict = I18N[lang] || I18N.en;
       try { document.documentElement.setAttribute('lang', (I18N[lang] ? lang : 'en')); } catch {}
       // Dark toggle label
-      setText(document.querySelector('label[for="darkToggle"]'), t.dark);
+      setText(document.querySelector('label[for="darkToggle"]'), dict.dark);
       // Share button in Settings header
-      setText(document.getElementById('openShareBtn'), t.share);
+      setText(document.getElementById('openShareBtn'), dict.share);
       // Add buttons
       const addBtn = document.getElementById('addExerciseBtn');
-      if (addBtn) setText(addBtn, `+ ${t.add}`);
+      if (addBtn) setText(addBtn, `+ ${dict.add}`);
       const addTailBtn = document.getElementById('addExerciseTailBtn');
-      if (addTailBtn) setText(addTailBtn, `+ ${t.add}`);
+      if (addTailBtn) setText(addTailBtn, `+ ${dict.add}`);
       // Accordion headers
       const gHdr = document.querySelector('section.acc-section[data-key="global"] .acc-header span:first-child');
-      if (gHdr) setText(gHdr, t.global);
+      if (gHdr) setText(gHdr, dict.global);
       const eHdr = document.querySelector('section.acc-section[data-key="exercise"] .acc-header span:first-child');
-      if (eHdr) setText(eHdr, t.perEx);
+      if (eHdr) setText(eHdr, dict.perEx);
       // Settings header title
       const settingsH2 = document.querySelector('#settingsModal .modal-header h2');
-      if (settingsH2) setText(settingsH2, t.settings);
+      if (settingsH2) setText(settingsH2, dict.settings);
       // Language modal bits
       const langH2 = document.querySelector('#langModal h2');
-      if (langH2) setText(langH2, t.language);
+      if (langH2) setText(langH2, dict.language);
       const langCancel = document.getElementById('langCancelBtn');
-      if (langCancel) setText(langCancel, t.cancel);
+      if (langCancel) setText(langCancel, dict.cancel);
       // History modal
       const histTitle = document.getElementById('historyTitle');
-      if (histTitle) setText(histTitle, t.history);
+      if (histTitle) setText(histTitle, dict.history);
       const histClose = document.getElementById('closeHistory');
-      if (histClose) setText(histClose, t.close);
+      if (histClose) setText(histClose, dict.close);
       // Weekly modal
       const wkTitle = document.querySelector('#weeklyModal h2');
-      if (wkTitle) setText(wkTitle, t.weeklySummary);
+      if (wkTitle) setText(wkTitle, dict.weeklySummary);
       const wkClose = document.getElementById('closeWeekly');
-      if (wkClose) setText(wkClose, t.close);
+      if (wkClose) setText(wkClose, dict.close);
       // Leaderboard modal
       const lbTitle = document.querySelector('#leaderboardModal h2');
-      if (lbTitle) setText(lbTitle, t.leaderboard);
+      if (lbTitle) setText(lbTitle, dict.leaderboard);
       const lbClose = document.getElementById('closeLeaderboard');
-      if (lbClose) setText(lbClose, t.close);
+      if (lbClose) setText(lbClose, dict.close);
       // Per-exercise actions
       const viewHistBtn = document.getElementById('settingsHistoryBtn');
-      if (viewHistBtn) setText(viewHistBtn, t.viewHistory);
+      if (viewHistBtn) setText(viewHistBtn, dict.viewHistory);
       const addTargetBtn = document.getElementById('settingsAddTargetBtn');
-      if (addTargetBtn) setText(addTargetBtn, t.addTargetAgain);
+      if (addTargetBtn) setText(addTargetBtn, dict.addTargetAgain);
       const showWeeklyBtn = document.getElementById('showWeeklyNowBtn');
-      if (showWeeklyBtn) setText(showWeeklyBtn, t.showWeekly);
+      if (showWeeklyBtn) setText(showWeeklyBtn, dict.showWeekly);
       const toggleDbgBtn = document.getElementById('toggleDebugBtn');
-      if (toggleDbgBtn) setText(toggleDbgBtn, t.toggleDebug);
+      if (toggleDbgBtn) setText(toggleDbgBtn, dict.toggleDebug);
       // Update flag icon
       const flagSpan = document.getElementById('langFlag');
       if (flagSpan) flagSpan.textContent = flagFor(lang);
+      // Apply data-i18n across DOM
+      try { applyI18nToDOM(); } catch {}
     } catch {}
+  }
+
+  function applyI18nToDOM(){
+    // textContent
+    document.querySelectorAll('[data-i18n]')
+      .forEach(el => { const key = el.getAttribute('data-i18n'); if (key) el.textContent = t(key); });
+    // innerHTML (for markup)
+    document.querySelectorAll('[data-i18n-html]')
+      .forEach(el => { const key = el.getAttribute('data-i18n-html'); if (key) el.innerHTML = t(key); });
+    // placeholders
+    document.querySelectorAll('[data-i18n-placeholder]')
+      .forEach(el => { const key = el.getAttribute('data-i18n-placeholder'); if (key) el.setAttribute('placeholder', t(key)); });
+    // aria-label
+    document.querySelectorAll('[data-i18n-aria-label]')
+      .forEach(el => { const key = el.getAttribute('data-i18n-aria-label'); if (key) el.setAttribute('aria-label', t(key)); });
+    // title attr
+    document.querySelectorAll('[data-i18n-title]')
+      .forEach(el => { const key = el.getAttribute('data-i18n-title'); if (key) el.setAttribute('title', t(key)); });
+    // document title
+    try { document.title = t('appTitle'); } catch {}
   }
 
   // Streak memoization (keyed by exercise id + today)
@@ -228,7 +355,7 @@
       const data = JSON.stringify(loadExercises() || []);
       const bytes = new Blob([data]).size;
       const el = document.querySelector('#storageSize');
-      if (el) el.textContent = `Storage: ${(bytes / 1024).toFixed(1)} KB`;
+      if (el) el.textContent = (t('storage') || 'Storage: — KB').replace('— KB', `${(bytes / 1024).toFixed(1)} KB`);
     } catch {}
   }
 
@@ -249,7 +376,7 @@
         }
       }
       const el = document.querySelector('#cacheSize');
-      if (el) el.textContent = `Cache: ${(total / 1024).toFixed(1)} KB`;
+      if (el) el.textContent = (t('cache') || 'Cache: — KB').replace('— KB', `${(total / 1024).toFixed(1)} KB`);
     } catch {}
   }
 
@@ -488,11 +615,11 @@
     if (decStr) {
       const dec = Math.max(1, parseInt(decStr, 10) || 0);
       actOn((s) => { s.remaining -= dec; addDone(s, todayStrUTC(), dec); checkAchievements(s); });
-      toastMsg = `Logged −${dec}`;
+      toastMsg = t('toastLoggedMinus', { n: dec });
     } else if (addStr) {
       const times = Math.max(1, parseInt(addStr, 10) || 0);
       actOn((s) => { const inc = (Number(s.dailyTarget || 0) * times); s.remaining += inc; addPlanned(s, todayStrUTC(), inc); checkAchievements(s); });
-      toastMsg = `Added +${times}× target`;
+      toastMsg = t('toastAddedTimes', { times });
     }
 
     if (toastMsg) showToast(toastMsg);
@@ -574,8 +701,8 @@
         data: {
           labels: days,
           datasets: [
-            { label: 'Done', data: done, backgroundColor: 'rgba(16, 185, 129, 0.6)', borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1 },
-            { label: 'Planned', data: planned, backgroundColor: 'rgba(59, 130, 246, 0.35)', borderColor: 'rgba(59, 130, 246, 1)', borderWidth: 1 }
+            { label: t('chartDone'), data: done, backgroundColor: 'rgba(16, 185, 129, 0.6)', borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1 },
+            { label: t('chartPlanned'), data: planned, backgroundColor: 'rgba(59, 130, 246, 0.35)', borderColor: 'rgba(59, 130, 246, 1)', borderWidth: 1 }
           ]
         },
         options: {
@@ -594,8 +721,8 @@
         data: {
           labels: days,
           datasets: [
-            { label: 'Planned', data: planned, backgroundColor: 'rgba(59, 130, 246, 0.5)', borderColor: 'rgba(59, 130, 246, 1)', borderWidth: 1 },
-            { label: 'Done', data: done, backgroundColor: 'rgba(16, 185, 129, 0.5)', borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1 }
+            { label: t('chartPlanned'), data: planned, backgroundColor: 'rgba(59, 130, 246, 0.5)', borderColor: 'rgba(59, 130, 246, 1)', borderWidth: 1 },
+            { label: t('chartDone'), data: done, backgroundColor: 'rgba(16, 185, 129, 0.5)', borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1 }
           ]
         },
         options: {
@@ -912,20 +1039,20 @@
       header.className = 'ex-header';
       const h3 = document.createElement('h3');
       h3.className = 'ex-title';
-      setText(h3, ex.exerciseName || 'Exercise');
+      setText(h3, ex.exerciseName || t('fallbackExercise'));
       // Optional PB pill
       const pbMeta = maxDayDone(ex);
       if (pbMeta.value > 0) {
         const pbPill = document.createElement('span');
         pbPill.className = 'pill ex-pb-pill';
-        pbPill.textContent = `PB ${pbMeta.value}`;
+        pbPill.textContent = `${t('pbDay')}: ${pbMeta.value}`;
         h3.appendChild(document.createTextNode(' '));
         h3.appendChild(pbPill);
       }
       const editBtn = document.createElement('button');
       editBtn.className = 'icon-btn ex-edit';
-      editBtn.title = 'Edit';
-      editBtn.setAttribute('aria-label', 'Edit');
+      editBtn.title = t('edit');
+      editBtn.setAttribute('aria-label', t('edit'));
       editBtn.innerHTML = `
         <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
           <path d="M3 17.25V21h3.75l11-11-3.75-3.75-11 11Zm14.71-9.46a1 1 0 0 0 0-1.41l-1.59-1.59a1 1 0 0 0-1.41 0l-1.13 1.13 3 3 1.13-1.13Z"/>
@@ -949,7 +1076,7 @@
       const doneMsg = document.createElement('div');
       doneMsg.className = 'done-msg';
       if ((ex.remaining ?? 0) <= 0) {
-        setText(doneMsg, 'Great job! ✅');
+        setText(doneMsg, t('doneMsg'));
       } else {
         doneMsg.setAttribute('hidden', '');
       }
@@ -1026,7 +1153,7 @@
       // Weekly goal progress bar
       const week = document.createElement('div');
       week.className = 'week-progress';
-      week.innerHTML = '<div class="wp-bar"><div class="wp-fill" style="width:0%"></div></div><div class="wp-label">This week: 0 / 0</div>';
+      week.innerHTML = `<div class=\"wp-bar\"><div class=\"wp-fill\" style=\"width:0%\"></div></div><div class=\"wp-label\">${t('thisWeek', { done: 0, goal: 0 })}</div>`;
       card.append(week);
       updateWeeklyBar(card, ex);
       // Now continue with quick-step buttons
@@ -1221,7 +1348,7 @@
     container.classList.add(status);
     if (fill) fill.style.width = (pct * 100).toFixed(1) + '%';
     const unit = ex.unit || 'reps';
-    if (label) label.textContent = `This week: ${done} / ${goal} ${unit}`;
+    if (label) label.textContent = t('thisWeek', { done, goal }) + ` ${unit}`;
   }
 
   function attachSparklineTooltip(canvas, ex){
@@ -1352,10 +1479,10 @@
     const unit = ex.unit || 'reps';
     el.historyStats.innerHTML = `
       <div class="stack">
-        <div><strong>PB Day:</strong> ${pb.date} ${pb.value} ${unit} • <strong>Longest Streak:</strong> ${ls}</div>
-        <div><strong>Last 7 days:</strong> Planned ${s7.planned} ${unit}, Done ${s7.done} ${unit} — ${r7}%</div>
-        <div><strong>Last 30 days:</strong> Planned ${s30.planned} ${unit}, Done ${s30.done} ${unit} — ${r30}%</div>
-        ${earnedTitles.length ? `<div><strong>Achievements:</strong> ${earnedTitles.join(', ')}</div>` : ''}
+        <div><strong>${t('pbDay')}:</strong> ${pb.date} ${pb.value} ${unit} • <strong>${t('longestStreakLbl')}:</strong> ${ls}</div>
+        <div><strong>${t('last7')}:</strong> ${t('plannedLbl')} ${s7.planned} ${unit}, ${t('doneLbl')} ${s7.done} ${unit} — ${r7}%</div>
+        <div><strong>${t('last30')}:</strong> ${t('plannedLbl')} ${s30.planned} ${unit}, ${t('doneLbl')} ${s30.done} ${unit} — ${r30}%</div>
+        ${earnedTitles.length ? `<div><strong>${t('achievementsLbl')}:</strong> ${earnedTitles.join(', ')}</div>` : ''}
       </div>`;
 
     const recentDays = getRecentDays(14);
@@ -1367,8 +1494,8 @@
       row.className = 'row';
       row.innerHTML = `
         <div class="muted">${ds}</div>
-        <div>Planned: ${ent.planned} ${unit}</div>
-        <div>Done: ${ent.done} ${unit}</div>
+        <div>${t('plannedLbl')}: ${ent.planned} ${unit}</div>
+        <div>${t('doneLbl')}: ${ent.done} ${unit}</div>
         <div>${pct}%</div>
       `;
       el.historyList.appendChild(row);
@@ -1521,7 +1648,7 @@
 
     if (darkToggle) darkToggle.checked = isDark;
     // Initialize language selection (persist for future i18n)
-    try { if (langSelect) langSelect.value = localStorage.getItem(LANG_KEY) || 'en'; } catch {}
+    try { if (langSelect) langSelect.value = getLang(); } catch {}
     // Rollover for each exercise on load
     const list = loadExercises();
     let changed = false;
@@ -1534,7 +1661,7 @@
     handleURLQuickAction();
     renderDashboard();
     // Apply i18n after initial render so dynamic buttons get updated
-    try { applyLanguage(localStorage.getItem('appLang') || 'en'); } catch {}
+    try { applyLanguage(getLang()); } catch {}
     // Initialize storage size meter
     updateStorageSize();
     // Push initial weekly total to leaderboard (if configured)
@@ -1648,11 +1775,11 @@
 
       // title
       ctx.fillStyle = fg.trim(); ctx.font = 'bold 64px system-ui, -apple-system, Segoe UI, Roboto';
-      ctx.fillText(ex.exerciseName || 'Exercise', P, P+40);
+      ctx.fillText(ex.exerciseName || t('fallbackExercise'), P, P+40);
 
       // subtitle (period)
       ctx.font = '500 40px system-ui';
-      const label = period==='day' ? 'Today' : (period==='week' ? 'This Week' : 'Last 30 Days');
+      const label = period==='day' ? t('labelToday') : (period==='week' ? t('labelThisWeek') : t('labelLast30'));
       ctx.fillStyle = 'rgba(255,255,255,0.85)';
       ctx.fillText(label, P, P+100);
 
@@ -1663,7 +1790,7 @@
 
       ctx.font = '500 36px system-ui';
       ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.fillText(totalPlanned>0 ? `of ${totalPlanned} ${unit} (${rate}%)` : `logged`, P, P+280);
+      ctx.fillText(totalPlanned>0 ? t('ofFmt', { total: totalPlanned, unit, rate }) : t('logged'), P, P+280);
 
       // little bars for each day
       const barW = Math.floor((W - P*2) / Math.max(7, days.length));
@@ -1695,7 +1822,7 @@
         const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
         const file = new File([blob], `${(ex.exerciseName||'exercise')}-${period}.png`, { type: 'image/png' });
         if (navigator.canShare && navigator.canShare({ files:[file] })) {
-          await navigator.share({ files:[file], title: 'My progress', text: `${ex.exerciseName}: ${period} progress` });
+          await navigator.share({ files:[file], title: t('myProgress'), text: `${ex.exerciseName}: ${period} progress` });
           return;
         }
       } catch(_) {}
@@ -1707,9 +1834,9 @@
           const totalDone = sumDone(ex, days);
           const totalPlanned = sumPlanned(ex, days);
           const unit = ex.unit || 'reps';
-          const label = period==='day' ? 'Today' : (period==='week' ? 'This Week' : 'Last 30 Days');
-          const msg = `${ex.exerciseName} — ${label}\n${totalDone} ${unit}${totalPlanned?` of ${totalPlanned} ${unit}`:''}`;
-          await navigator.share({ title: 'My progress', text: msg });
+          const label = period==='day' ? t('labelToday') : (period==='week' ? t('labelThisWeek') : t('labelLast30'));
+          const msg = `${ex.exerciseName} — ${label}\n${totalDone} ${unit}${totalPlanned?` ${t('ofFmt', { total: totalPlanned, unit, rate: Math.round((totalDone/Math.max(1,totalPlanned))*100) })}`:''}`;
+          await navigator.share({ title: t('myProgress'), text: msg });
           return;
         }
       } catch(_) {}
@@ -1719,7 +1846,7 @@
       const a = document.createElement('a');
       a.href = url; a.download = `${(ex.exerciseName||'exercise')}-${period}.png`;
       document.body.appendChild(a); a.click(); a.remove();
-      try { showToast?.('Image downloaded'); } catch {}
+      try { showToast?.(t('imageDownloaded')); } catch {}
     }
 
     // Settings accordion init: collapsed by default; toggle open/close on header click
@@ -1916,7 +2043,7 @@
           const fps = frames;
           frames = 0;
           last = ts;
-          fpsEl.textContent = `FPS: ${fps}`;
+          fpsEl.textContent = `${t('fps')}: ${fps}`;
         }
         requestAnimationFrame(loop);
       }
@@ -2158,7 +2285,7 @@
       try {
         const file = new File([blob], fileName, { type: 'image/png' });
         if (navigator.canShare && navigator.canShare({ files:[file] })) {
-          await navigator.share({ files:[file], title: 'My progress', text: `${ex.exerciseName} — ${period}\n${invite}` });
+          await navigator.share({ files:[file], title: t('myProgress'), text: `${ex.exerciseName} — ${period}\n${invite}` });
           URL.revokeObjectURL(url);
           return;
         }
@@ -2166,19 +2293,21 @@
 
       // App-specific intents / fallbacks
       if (dest === 'telegram') {
-        const text = encodeURIComponent(`${ex.exerciseName} — ${period}\n${invite}`);
+        const lbl = period==='day' ? t('labelToday') : (period==='week' ? t('labelThisWeek') : t('labelLast30'));
+        const text = encodeURIComponent(`${ex.exerciseName} — ${lbl}\n${invite}`);
         window.open(`https://t.me/share/url?url=${encodeURIComponent(invite)}&text=${text}`, '_blank');
       } else if (dest === 'whatsapp') {
-        const text = encodeURIComponent(`${ex.exerciseName} — ${period}\n${invite}`);
+        const lbl = period==='day' ? t('labelToday') : (period==='week' ? t('labelThisWeek') : t('labelLast30'));
+        const text = encodeURIComponent(`${ex.exerciseName} — ${lbl}\n${invite}`);
         window.open(`https://wa.me/?text=${text}`, '_blank');
       } else if (dest === 'instagram') {
         // No web image intent; download and instruct
         const a = document.createElement('a'); a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); a.remove();
-        try { showToast?.('Image saved. Open Instagram and post the image manually.'); } catch {}
+        try { showToast?.(t('imageDownloaded')); } catch {}
       } else if (dest === 'copy') {
         try {
           await navigator.clipboard.writeText(invite);
-          try { showToast?.('Invite link copied. Downloading image…'); } catch {}
+          try { showToast?.(t('imageDownloaded')); } catch {}
         } catch {}
         const a = document.createElement('a'); a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); a.remove();
       }
@@ -2391,7 +2520,7 @@
     if (remainingEl) setText(remainingEl, String(ex.remaining ?? 0));
     const doneMsg = card.querySelector('.done-msg');
     if (doneMsg) {
-      if ((ex.remaining ?? 0) <= 0) { doneMsg.removeAttribute('hidden'); setText(doneMsg, 'Great job! ✅'); }
+      if ((ex.remaining ?? 0) <= 0) { doneMsg.removeAttribute('hidden'); setText(doneMsg, t('doneMsg')); }
       else { doneMsg.setAttribute('hidden', ''); }
     }
     // Update today's stats and ring percentage
@@ -2483,7 +2612,7 @@
           titleEl.appendChild(document.createTextNode(' '));
           titleEl.appendChild(pill);
         }
-        pill.textContent = `PB ${pbMeta.value}`;
+        pill.textContent = `${t('pbDay')}: ${pbMeta.value}`;
       } else if (pill) {
         pill.remove();
       }

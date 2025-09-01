@@ -19,8 +19,8 @@
 <body>
   <main class="container">
     <div class="header-row">
-      <h1>My Exercises</h1>
-      <button id="settingsBtn" aria-label="Settings">
+      <h1 data-i18n="header">My Exercises</h1>
+      <button id="settingsBtn" data-i18n-aria-label="settings" aria-label="Settings">
         <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 24 24">
           <path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.14 7.14 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 14.3 2h-4.6a.5.5 0 0 0-.5.42l-.36 2.54c-.6.23-1.14.54-1.63.94l-2.39-.96a.5.5 0 0 0-.61.22L2.29 9.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.14.23.42.32.67.22l2.39-.96c.49.4 1.03.71 1.63.94l.36 2.54c.05.25.25.42.5.42h4.6c.25 0 .45-.17.5-.42l.36-2.54c.6-.23 1.14-.54 1.63-.94l2.39.96c.25.1.53.01.67-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/>
         </svg>
@@ -32,37 +32,37 @@
   <!-- Modal: Add/Edit Exercise -->
   <section id="setup-view" class="modal" aria-labelledby="modal-title" aria-modal="true" hidden>
     <div class="modal-card" role="dialog">
-      <h2 id="modal-title">Add/Edit Exercise</h2>
+      <h2 id="modal-title" data-i18n="addEditTitle">Add/Edit Exercise</h2>
       <div id="templateRow" class="template-row"></div>
       <div class="stack">
         <div class="field">
-          <input type="text" id="exerciseName" placeholder="Exercise name (e.g., Push-ups)" autocomplete="off" />
-          <small class="error-msg" id="exerciseNameError" aria-live="polite" hidden>Enter an exercise name.</small>
+          <input type="text" id="exerciseName" data-i18n-placeholder="namePh" placeholder="Exercise name (e.g., Push-ups)" autocomplete="off" />
+          <small class="error-msg" id="exerciseNameError" aria-live="polite" hidden data-i18n="nameErr">Enter an exercise name.</small>
         </div>
         <div class="field">
-          <input type="number" id="dailyTarget" placeholder="Daily target (e.g., 50)" min="1" inputmode="numeric" />
-          <small class="error-msg" id="dailyTargetError" aria-live="polite" hidden>Daily target must be ≥ 1.</small>
+          <input type="number" id="dailyTarget" data-i18n-placeholder="targetPh" placeholder="Daily target (e.g., 50)" min="1" inputmode="numeric" />
+          <small class="error-msg" id="dailyTargetError" aria-live="polite" hidden data-i18n="targetErr">Daily target must be ≥ 1.</small>
         </div>
         <div class="field compact">
-          <label for="unitSel">Unit</label>
+          <label for="unitSel" data-i18n="unitLabel">Unit</label>
           <select id="unitSel">
-            <option value="reps">reps</option>
-            <option value="min">min</option>
-            <option value="km">km</option>
+            <option value="reps" data-i18n="unitReps">reps</option>
+            <option value="min" data-i18n="unitMin">min</option>
+            <option value="km" data-i18n="unitKm">km</option>
           </select>
         </div>
         <div class="field compact">
-          <label for="quickStepsInput">Quick steps (comma-separated, e.g., 1,5,10)</label>
-          <input type="text" id="quickStepsInput" placeholder="e.g., 1,5,10" autocomplete="off" />
+          <label for="quickStepsInput" data-i18n="quickStepsLabel">Quick steps (comma-separated, e.g., 1,5,10)</label>
+          <input type="text" id="quickStepsInput" data-i18n-placeholder="quickStepsPh" placeholder="e.g., 1,5,10" autocomplete="off" />
         </div>
         <div class="field compact">
-          <label for="weeklyGoalInput">Weekly goal (total reps)</label>
-          <input id="weeklyGoalInput" type="number" min="0" placeholder="e.g., 500" />
+          <label for="weeklyGoalInput" data-i18n="weeklyGoalLabel">Weekly goal (total reps)</label>
+          <input id="weeklyGoalInput" type="number" min="0" data-i18n-placeholder="weeklyGoalPh" placeholder="e.g., 500" />
         </div>
       </div>
       <div class="modal-actions">
-        <button id="saveExerciseBtn" class="primary btn-block">Save</button>
-        <button id="cancelBtn" class="btn-block">Cancel</button>
+        <button id="saveExerciseBtn" class="primary btn-block" data-i18n="save">Save</button>
+        <button id="cancelBtn" class="btn-block" data-i18n="cancel">Cancel</button>
       </div>
     </div>
   </section>
@@ -71,16 +71,16 @@
 
   <div id="historyModal" class="modal hidden">
     <div class="modal-content">
-      <h2 id="historyTitle">History</h2>
+      <h2 id="historyTitle" data-i18n="history">History</h2>
       <div id="historyStats"></div>
       <div id="historyList" class="history-list"></div>
       <div class="tabs">
-        <button id="tabRecent">Recent</button>
-        <button id="tabTrends">Trends</button>
+        <button id="tabRecent" data-i18n="recent">Recent</button>
+        <button id="tabTrends" data-i18n="trends">Trends</button>
       </div>
       <canvas id="historyChart" width="400" height="260"></canvas>
       <div class="modal-actions">
-        <button id="closeHistory">Close</button>
+        <button id="closeHistory" data-i18n="close">Close</button>
       </div>
     </div>
   </div>
@@ -89,17 +89,17 @@
   <section id="settingsModal" class="modal hidden" aria-modal="true" aria-labelledby="settingsTitle">
     <div class="modal-content" role="dialog">
       <div class="modal-header">
-        <h2>Settings</h2>
-        <button id="openShareBtn" class="btn primary">Share</button>
-        <button id="langBtn" class="icon-btn" title="Language" aria-label="Language">
+        <h2 data-i18n="settings">Settings</h2>
+        <button id="openShareBtn" class="btn primary" data-i18n="share">Share</button>
+        <button id="langBtn" class="icon-btn" data-i18n-title="language" data-i18n-aria-label="language" title="Language" aria-label="Language">
           <span id="langFlag" aria-hidden="true">🇬🇧</span>
           <span class="sr-only">Language</span>
         </button>
-        <button id="closeSettingsBtn" class="icon-btn" aria-label="Close">&times;</button>
+        <button id="closeSettingsBtn" class="icon-btn" data-i18n-aria-label="close" aria-label="Close">&times;</button>
       </div>
 
       <div class="settings-intro">
-        <p>⚙️ Customize your app here. Use <b>Global</b> for app-wide settings, and <b>Per Exercise</b> for individual exercise details.</p>
+        <p data-i18n-html="settingsIntro">⚙️ Customize your app here. Use <b>Global</b> for app-wide settings, and <b>Per Exercise</b> for individual exercise details.</p>
       </div>
 
       <div id="settingsAccordion" class="accordion">
@@ -107,54 +107,54 @@
         <!-- GLOBAL SECTION -->
         <section class="acc-section" data-key="global">
           <button class="acc-header" type="button" aria-expanded="false">
-            <span>Global</span>
+            <span data-i18n="global">Global</span>
             <span class="chev" aria-hidden="true">▾</span>
           </button>
           <div class="acc-panel">
             <div class="row between">
-              <label for="darkToggle" class="label">Dark</label>
+              <label for="darkToggle" class="label" data-i18n="dark">Dark</label>
               <label class="switch">
                 <input type="checkbox" id="darkToggle">
                 <span class="slider"></span>
               </label>
             </div>
             <div class="row">
-              <button id="exportBtn" class="btn wfull">Export JSON</button>
+              <button id="exportBtn" class="btn wfull" data-i18n="exportJson">Export JSON</button>
             </div>
             <div class="row">
-              <button id="importBtn" class="btn wfull">Import JSON</button>
+              <button id="importBtn" class="btn wfull" data-i18n="importJson">Import JSON</button>
             </div>
             <div class="row">
-              <button id="forceReloadBtn" class="btn wfull">Hard Refresh (update)</button>
+              <button id="forceReloadBtn" class="btn wfull" data-i18n="hardRefresh">Hard Refresh (update)</button>
             </div>
             <hr>
             <div class="row">
-              <label for="lbName" class="label">Username</label>
+              <label for="lbName" class="label" data-i18n="username">Username</label>
               <input id="lbName" type="text" placeholder="e.g., Alex" autocomplete="name">
             </div>
             <div class="row">
-              <label for="lbUrl" class="label">Supabase URL</label>
+              <label for="lbUrl" class="label" data-i18n="supabaseUrl">Supabase URL</label>
               <input id="lbUrl" type="text" placeholder="https://your-project.supabase.co">
             </div>
             <div class="row">
-              <label for="lbKey" class="label">Supabase Key (anon)</label>
+              <label for="lbKey" class="label" data-i18n="supabaseKey">Supabase Key (anon)</label>
               <input id="lbKey" type="text" placeholder="eyJhbGci...">
             </div>
             <div class="row">
-              <button id="saveLbCfgBtn" class="btn wfull">Save Leaderboard Settings</button>
+              <button id="saveLbCfgBtn" class="btn wfull" data-i18n="saveLb">Save Leaderboard Settings</button>
             </div>
             <div class="row">
-              <button id="openLeaderboardBtn" class="btn wfull">Friend Leaderboard</button>
+              <button id="openLeaderboardBtn" class="btn wfull" data-i18n="openLb">Friend Leaderboard</button>
             </div>
             <hr>
             <div class="row">
-              <button id="addExerciseBtn" class="btn primary wfull">+ Add New Exercise</button>
+              <button id="addExerciseBtn" class="btn primary wfull">+ <span data-i18n="add">Add New Exercise</span></button>
             </div>
             <div class="row">
-              <button id="showWeeklyNowBtn" class="btn wfull">Show Weekly Summary</button>
+              <button id="showWeeklyNowBtn" class="btn wfull" data-i18n="showWeeklyNow">Show Weekly Summary</button>
             </div>
             <div class="row">
-              <button id="toggleDebugBtn" class="btn wfull">Toggle Debug Panel</button>
+              <button id="toggleDebugBtn" class="btn wfull" data-i18n="toggleDebugPanel">Toggle Debug Panel</button>
             </div>
             
           </div>
@@ -163,25 +163,25 @@
         <!-- PER EXERCISE SECTION -->
         <section class="acc-section" data-key="exercise">
           <button class="acc-header" type="button" aria-expanded="false">
-            <span>Per Exercise</span>
+            <span data-i18n="perEx">Per Exercise</span>
             <span class="chev" aria-hidden="true">▾</span>
           </button>
           <div class="acc-panel">
             <div class="row">
-              <label for="exerciseSelect" class="label">Select exercise</label>
+              <label for="exerciseSelect" class="label" data-i18n="selectExercise">Select exercise</label>
               <select id="exerciseSelect" class="input wfull"></select>
             </div>
 
             <div class="row">
-              <label for="customAmount" class="label">Custom decrement</label>
+              <label for="customAmount" class="label" data-i18n="customDecrement">Custom decrement</label>
               <div class="hstack">
                 <input id="customAmount" class="input" type="number" min="1" placeholder="e.g., 7">
-                <button id="applyCustomBtn" class="btn">Apply</button>
+                <button id="applyCustomBtn" class="btn" data-i18n="customApply">Apply</button>
               </div>
             </div>
 
             <div class="row">
-              <button id="settingsAddTargetBtn" class="btn wfull">Add target again</button>
+              <button id="settingsAddTargetBtn" class="btn wfull" data-i18n="addTargetAgain">Add target again</button>
             </div>
 
             <div class="row">
@@ -191,24 +191,24 @@
                     <path d="M13 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-7-7V3Zm0 4v6l5 3-.8 1.35L11 13V7h2Z"/>
                   </svg>
                 </span>
-                View History
+                <span data-i18n="viewHistory">View History</span>
               </button>
             </div>
             <div class="row">
               <div class="hstack">
-                <button id="shareDayBtn" class="btn wfull">Share: Today</button>
-                <button id="shareWeekBtn" class="btn wfull">Share: Week</button>
-                <button id="shareMonthBtn" class="btn wfull">Share: Month</button>
+                <button id="shareDayBtn" class="btn wfull" data-i18n="shareToday">Share: Today</button>
+                <button id="shareWeekBtn" class="btn wfull" data-i18n="shareWeek">Share: Week</button>
+                <button id="shareMonthBtn" class="btn wfull" data-i18n="shareMonth">Share: Month</button>
               </div>
             </div>
 
             <div class="row">
-              <button id="shareCardBtn" class="btn wfull">Share Progress Card</button>
+              <button id="shareCardBtn" class="btn wfull" data-i18n="shareProgressCard">Share Progress Card</button>
             </div>
             <hr class="sep"/>
             <div class="about">
               <div class="about-name" id="aboutName">Pushup Tracker</div>
-              <div class="about-version">Version <span id="appVersion">2.0</span></div>
+              <div class="about-version"><span data-i18n="version">Version</span> <span id="appVersion">2.0</span></div>
             </div>
           </div>
         </section>
@@ -219,29 +219,29 @@
 
   
   <div id="debugPanel" class="hidden">
-    <h3>Debug</h3>
+    <h3 data-i18n="debug">Debug</h3>
     <p id="fpsMeter">FPS: —</p>
-    <p id="storageSize">Storage: — KB</p>
-    <p id="cacheSize">Cache: — KB</p>
+    <p id="storageSize" data-i18n="storage">Storage: — KB</p>
+    <p id="cacheSize" data-i18n="cache">Cache: — KB</p>
   </div>
   <canvas id="confettiCanvas"></canvas>
 
   <div id="weeklyModal" class="modal hidden">
     <div class="modal-content">
-      <h2>Weekly Summary</h2>
+      <h2 data-i18n="weeklySummary">Weekly Summary</h2>
       <div id="weeklyStats"></div>
       <canvas id="weeklyChart" width="400" height="220"></canvas>
       <div class="modal-actions">
-        <button id="closeWeekly">Close</button>
+        <button id="closeWeekly" data-i18n="close">Close</button>
       </div>
     </div>
   </div>
   <div id="leaderboardModal" class="modal hidden">
     <div class="modal-content">
-      <h2>Friend Leaderboard</h2>
+      <h2 data-i18n="leaderboard">Friend Leaderboard</h2>
       <div id="leaderboardList"></div>
       <div class="modal-actions">
-        <button id="closeLeaderboard">Close</button>
+        <button id="closeLeaderboard" data-i18n="close">Close</button>
       </div>
     </div>
   </div>
@@ -250,24 +250,24 @@
   <!-- Share Modal -->
   <div id="shareModal" class="modal hidden">
     <div class="modal-content">
-      <h2>Share Progress</h2>
+      <h2 data-i18n="shareProgress">Share Progress</h2>
 
       <div class="row">
-        <label class="label">Exercise</label>
+        <label class="label" data-i18n="fallbackExercise">Exercise</label>
         <select id="shareExercise" class="input wfull"></select>
       </div>
 
       <div class="row">
-        <label class="label">Period</label>
+        <label class="label" data-i18n="period">Period</label>
         <div class="seg">
-          <button type="button" class="seg-btn active" data-period="day">Day</button>
-          <button type="button" class="seg-btn" data-period="week">Week</button>
-          <button type="button" class="seg-btn" data-period="month">Month</button>
+          <button type="button" class="seg-btn active" data-period="day" data-i18n="labelToday">Day</button>
+          <button type="button" class="seg-btn" data-period="week" data-i18n="labelThisWeek">Week</button>
+          <button type="button" class="seg-btn" data-period="month" data-i18n="labelLast30">Month</button>
         </div>
       </div>
 
       <div class="row">
-        <label class="label">Destination</label>
+        <label class="label" data-i18n="destination">Destination</label>
         <div class="share-dests">
           <button class="btn dest" data-dest="telegram">Telegram</button>
           <button class="btn dest" data-dest="whatsapp">WhatsApp</button>
@@ -277,8 +277,8 @@
       </div>
 
       <div class="modal-actions">
-        <button id="doShareBtn" class="btn primary">Share</button>
-        <button id="closeShareBtn" class="btn">Cancel</button>
+        <button id="doShareBtn" class="btn primary" data-i18n="share">Share</button>
+        <button id="closeShareBtn" class="btn" data-i18n="cancel">Cancel</button>
       </div>
     </div>
   </div>
@@ -286,14 +286,14 @@
   <!-- Language Modal -->
   <div id="langModal" class="modal hidden">
     <div class="modal-content">
-      <h2>Language</h2>
+      <h2 data-i18n="langTitle">Language</h2>
       <div class="lang-list" role="listbox" aria-label="Languages">
         <button type="button" class="lang-option" data-lang="en">🇬🇧 English</button>
         <button type="button" class="lang-option" data-lang="de">🇩🇪 Deutsch</button>
         <button type="button" class="lang-option" data-lang="ru">🇷🇺 Русский</button>
       </div>
       <div class="modal-actions">
-        <button id="langCancelBtn" class="btn">Cancel</button>
+        <button id="langCancelBtn" class="btn" data-i18n="langCancel">Cancel</button>
       </div>
     </div>
   </div>

@@ -715,6 +715,26 @@ body.no-scroll { overflow: hidden; }
 .about-name { font-weight:600; font-size:14px; margin-bottom:4px; }
 .about-version { font-family: ui-monospace, SFMono-Regular, monospace; }
 
+/* --- Onboarding (first-time view) --- */
+.onboarding {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--fg);
+}
+.onboarding h2 {
+  font-size: 1.6rem;
+  margin-bottom: 10px;
+}
+.onboarding p {
+  opacity: 0.8;
+  margin-bottom: 20px;
+}
+.btn.big {
+  padding: 14px 20px;
+  font-size: 1.1rem;
+  border-radius: 12px;
+}
+
 /* Collapse behavior: titles-only when closed */
 #settingsModal .acc-section { overflow: hidden; border-radius: 14px; background: var(--card); }
 #settingsModal .acc-header { width: 100%; display:flex; justify-content:space-between; align-items:center; padding:14px 16px; cursor:pointer; border:0; background:transparent; color:var(--fg); font-weight:600; }

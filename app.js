@@ -785,8 +785,28 @@
 
   // ---------- Rendering ----------
   function renderDashboard() {
-    const list = loadExercises();
-    el.list.innerHTML = '';
+    const list = loadExercises() || [];
+    // Root dashboard/list container
+    const dash = el.list || document.getElementById('exerciseListContainer');
+    if (!dash) return;
+    dash.innerHTML = '';
+
+    // First-time onboarding view
+    if (list.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'onboarding';
+      empty.innerHTML = `
+        <h2>Welcome 👋</h2>
+        <p>You don’t have any exercises yet.</p>
+        <button id="addFirstExerciseBtn" class="btn primary big">Add New Exercise</button>
+      `;
+      dash.appendChild(empty);
+      document.getElementById('addFirstExerciseBtn')?.addEventListener('click', () => {
+        try { openAddEditModal(); } catch {}
+      });
+      return; // stop here
+    }
+
     const containerFrag = document.createDocumentFragment();
 
     list.forEach((ex) => {

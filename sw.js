@@ -1,6 +1,6 @@
 // PWA SW: precache core, runtime SWR for Chart.js
 // Checklist: lazy Chart.js, cache v8, SWR for CDN
-const CACHE_NAME = 'app-cache-v27';
+const CACHE_NAME = 'app-cache-v28';
 const ASSETS = [
   './',
   './index.html',

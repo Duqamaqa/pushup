@@ -102,10 +102,31 @@
 
   // --- Tiny i18n ---
   const I18N = {
-    en: { dark:'Dark', share:'Share', add:'Add New Exercise', global:'Global', perEx:'Per Exercise' },
-    he: { dark:'מצב כהה', share:'שיתוף', add:'הוסף תרגיל חדש', global:'גלובלי', perEx:'לכל תרגיל' },
-    ru: { dark:'Тёмная тема', share:'Поделиться', add:'Добавить упражнение', global:'Глобальные', perEx:'По упражнению' }
+    en: {
+      dark:'Dark', share:'Share', add:'Add New Exercise', global:'Global', perEx:'Per Exercise',
+      settings:'Settings', language:'Language', apply:'Apply', cancel:'Cancel', history:'History', close:'Close',
+      weeklySummary:'Weekly Summary', leaderboard:'Friend Leaderboard', viewHistory:'View History',
+      addTargetAgain:'Add target again', showWeekly:'Show Weekly Summary', toggleDebug:'Toggle Debug Panel'
+    },
+    de: {
+      dark:'Dunkel', share:'Teilen', add:'Neue Übung hinzufügen', global:'Global', perEx:'Pro Übung',
+      settings:'Einstellungen', language:'Sprache', apply:'Anwenden', cancel:'Abbrechen', history:'Verlauf', close:'Schließen',
+      weeklySummary:'Wöchentliche Übersicht', leaderboard:'Freundes-Rangliste', viewHistory:'Verlauf anzeigen',
+      addTargetAgain:'Ziel erneut hinzufügen', showWeekly:'Wöchentliche Übersicht zeigen', toggleDebug:'Debug-Panel umschalten'
+    },
+    ru: {
+      dark:'Тёмная тема', share:'Поделиться', add:'Добавить упражнение', global:'Глобальные', perEx:'По упражнению',
+      settings:'Настройки', language:'Язык', apply:'Применить', cancel:'Отмена', history:'История', close:'Закрыть',
+      weeklySummary:'Еженедельная сводка', leaderboard:'Таблица друзей', viewHistory:'Открыть историю',
+      addTargetAgain:'Добавить цель ещё раз', showWeekly:'Показать недельную сводку', toggleDebug:'Панель отладки'
+    }
   };
+
+  function flagFor(lang){
+    if (lang === 'de') return '🇩🇪';
+    if (lang === 'ru') return '🇷🇺';
+    return '🇬🇧';
+  }
   function applyLanguage(lang){
     try {
       const t = I18N[lang] || I18N.en;
@@ -124,6 +145,41 @@
       if (gHdr) setText(gHdr, t.global);
       const eHdr = document.querySelector('section.acc-section[data-key="exercise"] .acc-header span:first-child');
       if (eHdr) setText(eHdr, t.perEx);
+      // Settings header title
+      const settingsH2 = document.querySelector('#settingsModal .modal-header h2');
+      if (settingsH2) setText(settingsH2, t.settings);
+      // Language modal bits
+      const langH2 = document.querySelector('#langModal h2');
+      if (langH2) setText(langH2, t.language);
+      const langCancel = document.getElementById('langCancelBtn');
+      if (langCancel) setText(langCancel, t.cancel);
+      // History modal
+      const histTitle = document.getElementById('historyTitle');
+      if (histTitle) setText(histTitle, t.history);
+      const histClose = document.getElementById('closeHistory');
+      if (histClose) setText(histClose, t.close);
+      // Weekly modal
+      const wkTitle = document.querySelector('#weeklyModal h2');
+      if (wkTitle) setText(wkTitle, t.weeklySummary);
+      const wkClose = document.getElementById('closeWeekly');
+      if (wkClose) setText(wkClose, t.close);
+      // Leaderboard modal
+      const lbTitle = document.querySelector('#leaderboardModal h2');
+      if (lbTitle) setText(lbTitle, t.leaderboard);
+      const lbClose = document.getElementById('closeLeaderboard');
+      if (lbClose) setText(lbClose, t.close);
+      // Per-exercise actions
+      const viewHistBtn = document.getElementById('settingsHistoryBtn');
+      if (viewHistBtn) setText(viewHistBtn, t.viewHistory);
+      const addTargetBtn = document.getElementById('settingsAddTargetBtn');
+      if (addTargetBtn) setText(addTargetBtn, t.addTargetAgain);
+      const showWeeklyBtn = document.getElementById('showWeeklyNowBtn');
+      if (showWeeklyBtn) setText(showWeeklyBtn, t.showWeekly);
+      const toggleDbgBtn = document.getElementById('toggleDebugBtn');
+      if (toggleDbgBtn) setText(toggleDbgBtn, t.toggleDebug);
+      // Update flag icon
+      const flagSpan = document.getElementById('langFlag');
+      if (flagSpan) flagSpan.textContent = flagFor(lang);
     } catch {}
   }
 
@@ -1448,7 +1504,6 @@
     // Language modal elements
     const langBtn = document.getElementById('langBtn');
     const langModal = document.getElementById('langModal');
-    const langSaveBtn = document.getElementById('langSaveBtn');
     const langCancelBtn = document.getElementById('langCancelBtn');
     const langSelect = document.getElementById('langSelect');
     const LANG_KEY = 'appLang';
@@ -1803,11 +1858,14 @@
     langBtn?.addEventListener('click', () => langModal?.classList.remove('hidden'));
     langCancelBtn?.addEventListener('click', () => langModal?.classList.add('hidden'));
     langModal?.addEventListener('click', (e) => { if (e.target === langModal) langModal.classList.add('hidden'); });
-    langSaveBtn?.addEventListener('click', () => {
-      const v = (langSelect && langSelect.value) || 'en';
-      try { localStorage.setItem(LANG_KEY, v); } catch {}
-      langModal?.classList.add('hidden');
-      try { applyLanguage?.(v); } catch {}
+    // Language immediate selection via list
+    Array.from(document.querySelectorAll('#langModal .lang-option')).forEach(btn => {
+      btn.addEventListener('click', () => {
+        const v = btn.getAttribute('data-lang') || 'en';
+        try { localStorage.setItem(LANG_KEY, v); } catch {}
+        langModal?.classList.add('hidden');
+        try { applyLanguage?.(v); } catch {}
+      });
     });
 
     // Theme toggle wiring (modal)

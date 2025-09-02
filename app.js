@@ -141,7 +141,10 @@
       pbDay:'PB Day', longestStreakLbl:'Longest Streak', last7:'Last 7 days', last30:'Last 30 days', plannedLbl:'Planned', doneLbl:'Done', achievementsLbl:'Achievements',
       toastLoggedMinus:'Logged −{n}', toastAddedTimes:'Added +{times}× target',
       importSuccess:'Import successful', importFailed:'Failed to import JSON: {msg}', lbSaved:'Leaderboard settings saved', cfgSupabaseFirst:'Configure Supabase first',
-      noScores:'No scores yet for this week.', plusLogged:'+{v} logged', minusLogged:'−{n} logged', plusAdded:'+{n} added'
+      noScores:'No scores yet for this week.', plusLogged:'+{v} logged', minusLogged:'−{n} logged', plusAdded:'+{n} added',
+      welcomeTitle:'Welcome 👋', noExercises:'You don’t have any exercises yet.',
+      promptNewDec:'New decrement value (1–999):',
+      destTelegram:'Telegram', destWhatsApp:'WhatsApp', destInstagram:'Instagram', destCopy:'Copy Image + Link'
     },
     de: {
       appTitle:'Täglicher Trainingszähler', header:'Meine Übungen',
@@ -177,7 +180,10 @@
       pbDay:'Bester Tag', longestStreakLbl:'Längste Serie', last7:'Letzte 7 Tage', last30:'Letzte 30 Tage', plannedLbl:'Geplant', doneLbl:'Erledigt', achievementsLbl:'Erfolge',
       toastLoggedMinus:'−{n} erfasst', toastAddedTimes:'+{times}× Ziel hinzugefügt',
       importSuccess:'Import erfolgreich', importFailed:'Import fehlgeschlagen: {msg}', lbSaved:'Ranglisten‑Einstellungen gespeichert', cfgSupabaseFirst:'Zuerst Supabase konfigurieren',
-      noScores:'Noch keine Werte für diese Woche.', plusLogged:'+{v} erfasst', minusLogged:'−{n} erfasst', plusAdded:'+{n} hinzugefügt'
+      noScores:'Noch keine Werte für diese Woche.', plusLogged:'+{v} erfasst', minusLogged:'−{n} erfasst', plusAdded:'+{n} hinzugefügt',
+      welcomeTitle:'Willkommen 👋', noExercises:'Du hast noch keine Übungen.',
+      promptNewDec:'Neuer Abzugswert (1–999):',
+      destTelegram:'Telegram', destWhatsApp:'WhatsApp', destInstagram:'Instagram', destCopy:'Bild + Link kopieren'
     },
     ru: {
       appTitle:'Ежедневный счётчик упражнений', header:'Мои упражнения',
@@ -213,7 +219,10 @@
       pbDay:'Рекордный день', longestStreakLbl:'Самая длинная серия', last7:'Последние 7 дней', last30:'Последние 30 дней', plannedLbl:'Запланировано', doneLbl:'Сделано', achievementsLbl:'Достижения',
       toastLoggedMinus:'Записано −{n}', toastAddedTimes:'Добавлено +{times}× цель',
       importSuccess:'Импорт выполнен', importFailed:'Не удалось импортировать JSON: {msg}', lbSaved:'Настройки таблицы сохранены', cfgSupabaseFirst:'Сначала настройте Supabase',
-      noScores:'Пока нет результатов за эту неделю.', plusLogged:'+{v} записано', minusLogged:'−{n} записано', plusAdded:'+{n} добавлено'
+      noScores:'Пока нет результатов за эту неделю.', plusLogged:'+{v} записано', minusLogged:'−{n} записано', plusAdded:'+{n} добавлено',
+      welcomeTitle:'Добро пожаловать 👋', noExercises:'У вас пока нет упражнений.',
+      promptNewDec:'Новое значение уменьшения (1–999):',
+      destTelegram:'Telegram', destWhatsApp:'WhatsApp', destInstagram:'Instagram', destCopy:'Копировать изображение и ссылку'
     }
   };
 
@@ -287,6 +296,8 @@
       if (flagSpan) flagSpan.textContent = flagFor(lang);
       // Apply data-i18n across DOM
       try { applyI18nToDOM(); } catch {}
+      // Re-render dashboard so dynamic labels reflect language
+      try { renderDashboard(); } catch {}
     } catch {}
   }
 
@@ -1002,9 +1013,9 @@
       const empty = document.createElement('div');
       empty.className = 'onboarding';
       empty.innerHTML = `
-        <h2>Welcome 👋</h2>
-        <p>You don’t have any exercises yet.</p>
-        <button id="addFirstExerciseBtn" class="btn primary big">Add New Exercise</button>
+        <h2>${t('welcomeTitle')}</h2>
+        <p>${t('noExercises')}</p>
+        <button id="addFirstExerciseBtn" class="btn primary big">+ ${t('add')}</button>
       `;
       dash.appendChild(empty);
       document.getElementById('addFirstExerciseBtn')?.addEventListener('click', () => {
@@ -1106,10 +1117,10 @@
       const over = Math.max(0, done - planned);
       const unit = ex.unit || 'reps';
       stats.innerHTML = `
-        <span class="chip"><span class="lbl">Daily</span><span class="val ex-daily">${planned} ${unit}</span></span>
-        <span class="chip"><span class="lbl">Done</span><span class="val ex-done-today">${done} ${unit}</span></span>
-        <span class="chip"><span class="lbl">Left</span><span class="val ex-left">${leftToday} ${unit}</span></span>
-        <span class="chip chip-over"${over > 0 ? '' : ' hidden'}>+<span class="ex-over">${over}</span> over</span>
+        <span class="chip"><span class="lbl">${t('daily')}</span><span class="val ex-daily">${planned} ${unit}</span></span>
+        <span class="chip"><span class="lbl">${t('done')}</span><span class="val ex-done-today">${done} ${unit}</span></span>
+        <span class="chip"><span class="lbl">${t('left')}</span><span class="val ex-left">${leftToday} ${unit}</span></span>
+        <span class="chip chip-over"${over > 0 ? '' : ' hidden'}>+<span class="ex-over">${over}</span> ${t('over')}</span>
       `;
       // Color-code chips based on progress
       {
@@ -1184,8 +1195,8 @@
       const extraWrap = document.createElement('div');
       extraWrap.className = 'ex-extra';
       extraWrap.innerHTML = `
-        <input class="extra-input" type="number" min="1" placeholder="Add extra..." />
-        <button class="btn extra-apply">+ Add</button>
+        <input class="extra-input" type="number" min="1" placeholder="${t('addExtraPh')}" />
+        <button class="btn extra-apply">${t('addExtraBtn')}</button>
       `;
       card.append(extraWrap);
 
@@ -1223,7 +1234,7 @@
             try { launchConfetti(); } catch {}
           }
         }
-        try { showToast && showToast(`+${v} logged`); } catch {}
+        try { showToast && showToast(t('plusLogged', { v })); } catch {}
       };
       if (extraBtn) extraBtn.addEventListener('click', applyExtra);
       if (extraInput) extraInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') applyExtra(); });
@@ -1242,9 +1253,7 @@
       const addCard = document.createElement('div');
       addCard.className = 'ex-card ex-card-add';
       addCard.innerHTML = `
-        <button id="addExerciseTailBtn" class="btn primary add-tail">
-          + Add New Exercise
-        </button>
+        <button id="addExerciseTailBtn" class="btn primary add-tail">+ ${t('add')}</button>
       `;
       dash.appendChild(addCard);
 
@@ -1379,7 +1388,7 @@
 
   // --- Quick-step edit helpers ---
   function editQuickStepValue(ex, oldVal){
-    const next = prompt('New decrement value (1–999):', oldVal);
+    const next = prompt(t('promptNewDec'), oldVal);
     if (next===null) return null;
     const n = Math.max(1, Math.min(999, parseInt(next,10)||oldVal));
     let steps = Array.isArray(ex.quickSteps) ? ex.quickSteps.slice() : [];
@@ -1696,7 +1705,7 @@
       items.forEach((ex) => {
         const opt = document.createElement('option');
         opt.value = ex.id;
-        opt.textContent = ex.exerciseName || 'Exercise';
+        opt.textContent = ex.exerciseName || t('fallbackExercise');
         exerciseSelect.appendChild(opt);
       });
       // maintain or set default selection
@@ -1726,7 +1735,7 @@
       items.forEach((ex) => {
         const opt = document.createElement('option');
         opt.value = ex.id;
-        opt.textContent = ex.exerciseName || 'Exercise';
+        opt.textContent = ex.exerciseName || t('fallbackExercise');
         shareExerciseSel.appendChild(opt);
       });
       // default selection mirrors currentExerciseId or first item
@@ -2097,10 +2106,10 @@
             }));
             saveExercises(norm);
             renderDashboard();
-            showToast('Import successful');
+            showToast(t('importSuccess'));
             closeSettingsModal();
           } catch (e) {
-            alert('Failed to import JSON: ' + e.message);
+            alert(t('importFailed', { msg: e.message }));
           }
         };
         reader.readAsText(file);
@@ -2126,7 +2135,7 @@
       checkAchievements(ex);
       saveDebounced(() => saveExercises(items));
       updateExerciseCardView(ex);
-      showToast(`−${amt} logged`);
+      showToast(t('minusLogged', { n: amt }));
       // Push updated weekly total to leaderboard (if configured)
       try {
         const cfg = getLbConfig();
@@ -2150,7 +2159,7 @@
       checkAchievements(ex);
       saveDebounced(() => saveExercises(items));
       updateExerciseCardView(ex);
-      showToast(`+${inc} added`);
+      showToast(t('plusAdded', { n: inc }));
     });
 
     settingsHistoryBtn?.addEventListener('click', () => {
@@ -2169,18 +2178,18 @@
         localStorage.setItem('lbUrl', url);
         localStorage.setItem('lbKey', key);
         if (openLeaderboardBtn) openLeaderboardBtn.style.display = (name && url && key) ? '' : 'none';
-        showToast('Leaderboard settings saved');
+        showToast(t('lbSaved'));
       } catch {}
     });
 
     // Open leaderboard modal
     openLeaderboardBtn?.addEventListener('click', async () => {
-      if (!supaConfigured()) { showToast('Configure Supabase first'); return; }
+      if (!supaConfigured()) { showToast(t('cfgSupabaseFirst')); return; }
       const rows = await loadLeaderboard();
       if (leaderboardList) {
         leaderboardList.innerHTML = '';
         if (!rows.length) {
-          leaderboardList.textContent = 'No scores yet for this week.';
+          leaderboardList.textContent = t('noScores');
         } else {
           rows.forEach((r, i) => {
             const div = document.createElement('div');

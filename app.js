@@ -1137,10 +1137,11 @@
       tipEl.id = `tip-${ex.id}`;
       setText(tipEl, dailyQuote(ex.exerciseName || ''));
 
-      // Badges row (tiny) — exclude First Day, Century Week, Perfect Days
+      // Badges row (tiny) — exclude First Day, Century Week, Perfect Days,
+      // and hide streak/total badges from the main dashboard view
       const badgesRow = document.createElement('div');
       badgesRow.className = 'ex-badges';
-      const excludeIds = ['first_day', 'week100', 'goal100'];
+      const excludeIds = ['first_day', 'week100', 'goal100', 'streak3', 'streak7', 'total500'];
       const earned = Array.isArray(ex.badges)
         ? ex.badges.filter((id) => !excludeIds.includes(id)).slice(0, 3)
         : [];

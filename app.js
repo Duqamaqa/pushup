@@ -1137,10 +1137,13 @@
       tipEl.id = `tip-${ex.id}`;
       setText(tipEl, dailyQuote(ex.exerciseName || ''));
 
-      // Badges row (tiny)
+      // Badges row (tiny) — exclude First Day, Century Week, Perfect Days
       const badgesRow = document.createElement('div');
       badgesRow.className = 'ex-badges';
-      const earned = Array.isArray(ex.badges) ? ex.badges.slice(0,3) : [];
+      const excludeIds = ['first_day', 'week100', 'goal100'];
+      const earned = Array.isArray(ex.badges)
+        ? ex.badges.filter((id) => !excludeIds.includes(id)).slice(0, 3)
+        : [];
       earned.forEach((id) => {
         const s = document.createElement('span');
         s.className = 'badge';
@@ -1148,6 +1151,7 @@
         s.textContent = getAchievementTitle(id);
         badgesRow.appendChild(s);
       });
+      if (earned.length === 0) badgesRow.setAttribute('hidden', '');
 
       // Stats strip
       const stats = document.createElement('div');
@@ -2620,7 +2624,7 @@
       const leftOverall = Number(ex.remaining || 0);
       if (leftChip) leftChip.classList.add(leftOverall === 0 ? 'ok' : (p ? (pct >= .5 ? 'warn' : 'danger') : 'warn'));
     }
-    // Update badges (first 3)
+    // Update badges (first 3) — exclude First Day, Century Week, Perfect Days
     let badgesRow = card.querySelector('.ex-badges');
     if (!badgesRow) {
       badgesRow = document.createElement('div');
@@ -2629,7 +2633,10 @@
       if (header && header.nextSibling) card.insertBefore(badgesRow, header.nextSibling); else card.prepend(badgesRow);
     }
     badgesRow.innerHTML = '';
-    const earned = Array.isArray(ex.badges) ? ex.badges.slice(0,3) : [];
+    const excludeIds = ['first_day', 'week100', 'goal100'];
+    const earned = Array.isArray(ex.badges)
+      ? ex.badges.filter((id) => !excludeIds.includes(id)).slice(0, 3)
+      : [];
     earned.forEach((id) => {
       const s = document.createElement('span');
       s.className = 'badge';
@@ -2637,6 +2644,7 @@
       s.textContent = getAchievementTitle(id);
       badgesRow.appendChild(s);
     });
+    if (earned.length === 0) badgesRow.setAttribute('hidden', ''); else badgesRow.removeAttribute('hidden');
 
     // Keep quick-step buttons always enabled to allow over-goal logging
 

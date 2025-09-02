@@ -136,7 +136,7 @@
       ach_first_day:'First Day', ach_week100:'Century Week', ach_streak3:'3-Day Streak', ach_streak7:'7-Day Streak', ach_total500:'Total 500', ach_goal100:'Perfect Days ×3',
       chartDone:'Done', chartPlanned:'Planned',
       shareProgress:'Share Progress', labelToday:'Today', labelThisWeek:'This Week', labelLast30:'Last 30 Days',
-      myProgress:'My progress', ofFmt:'of {total} {unit} ({rate}%)', logged:'logged', imageDownloaded:'Image downloaded', couldNotCreateImage:'Could not create image',
+      myProgress:'My progress', ofFmt:'of {total} {unit} ({rate}%)', logged:'logged', imageDownloaded:'Image downloaded', couldNotCreateImage:'Could not create image', updatedTap:'Updated — tap to reload', customLabel:'Custom',
       last7Days:'Last 7 Days', currentStreak:'Current Streak', day:'day', days:'days',
       pbDay:'PB Day', longestStreakLbl:'Longest Streak', last7:'Last 7 days', last30:'Last 30 days', plannedLbl:'Planned', doneLbl:'Done', achievementsLbl:'Achievements',
       toastLoggedMinus:'Logged −{n}', toastAddedTimes:'Added +{times}× target',
@@ -175,7 +175,7 @@
       ach_first_day:'Erster Tag', ach_week100:'Hundert‑Woche', ach_streak3:'3‑Tage‑Serie', ach_streak7:'7‑Tage‑Serie', ach_total500:'Insgesamt 500', ach_goal100:'Perfekte Tage ×3',
       chartDone:'Erledigt', chartPlanned:'Geplant',
       shareProgress:'Fortschritt teilen', labelToday:'Heute', labelThisWeek:'Diese Woche', labelLast30:'Letzte 30 Tage',
-      myProgress:'Mein Fortschritt', ofFmt:'von {total} {unit} ({rate}%)', logged:'erfasst', imageDownloaded:'Bild heruntergeladen', couldNotCreateImage:'Bild konnte nicht erstellt werden',
+      myProgress:'Mein Fortschritt', ofFmt:'von {total} {unit} ({rate}%)', logged:'erfasst', imageDownloaded:'Bild heruntergeladen', couldNotCreateImage:'Bild konnte nicht erstellt werden', updatedTap:'Aktualisiert — zum Neu laden tippen', customLabel:'Benutzerdefiniert',
       last7Days:'Letzte 7 Tage', currentStreak:'Aktuelle Serie', day:'Tag', days:'Tage',
       pbDay:'Bester Tag', longestStreakLbl:'Längste Serie', last7:'Letzte 7 Tage', last30:'Letzte 30 Tage', plannedLbl:'Geplant', doneLbl:'Erledigt', achievementsLbl:'Erfolge',
       toastLoggedMinus:'−{n} erfasst', toastAddedTimes:'+{times}× Ziel hinzugefügt',
@@ -214,7 +214,7 @@
       ach_first_day:'Первый день', ach_week100:'Сотня за неделю', ach_streak3:'Серия 3 дня', ach_streak7:'Серия 7 дней', ach_total500:'Итого 500', ach_goal100:'Идеальные дни ×3',
       chartDone:'Сделано', chartPlanned:'Запланировано',
       shareProgress:'Поделиться прогрессом', labelToday:'Сегодня', labelThisWeek:'Эта неделя', labelLast30:'Последние 30 дней',
-      myProgress:'Мой прогресс', ofFmt:'из {total} {unit} ({rate}%)', logged:'записано', imageDownloaded:'Изображение скачано', couldNotCreateImage:'Не удалось создать изображение',
+      myProgress:'Мой прогресс', ofFmt:'из {total} {unit} ({rate}%)', logged:'записано', imageDownloaded:'Изображение скачано', couldNotCreateImage:'Не удалось создать изображение', updatedTap:'Обновлено — нажмите, чтобы перезагрузить', customLabel:'Свой',
       last7Days:'Последние 7 дней', currentStreak:'Текущая серия', day:'день', days:'дней',
       pbDay:'Рекордный день', longestStreakLbl:'Самая длинная серия', last7:'Последние 7 дней', last30:'Последние 30 дней', plannedLbl:'Запланировано', doneLbl:'Сделано', achievementsLbl:'Достижения',
       toastLoggedMinus:'Записано −{n}', toastAddedTimes:'Добавлено +{times}× цель',
@@ -226,12 +226,25 @@
     }
   };
 
+  // Locale-aware number formatting for UI
+  function n(val){
+    try {
+      if (typeof val === 'number' && Number.isFinite(val)) return new Intl.NumberFormat(getLang()).format(val);
+      const num = Number(val);
+      if (Number.isFinite(num)) return new Intl.NumberFormat(getLang()).format(num);
+      return String(val);
+    } catch { return String(val); }
+  }
+
   function t(key, params){
     const lang = getLang();
     const dict = I18N[lang] || I18N.en;
     let str = dict[key] != null ? dict[key] : (I18N.en[key] != null ? I18N.en[key] : key);
     if (params && typeof str === 'string') {
-      Object.entries(params).forEach(([k,v]) => { str = str.replace(new RegExp('\\{'+k+'\\}', 'g'), String(v)); });
+      Object.entries(params).forEach(([k,v]) => {
+        const rep = (typeof v === 'number') ? n(v) : String(v);
+        str = str.replace(new RegExp('\\{'+k+'\\}', 'g'), rep);
+      });
     }
     return str;
   }
@@ -298,6 +311,31 @@
       try { applyI18nToDOM(); } catch {}
       // Re-render dashboard so dynamic labels reflect language
       try { renderDashboard(); } catch {}
+      // Refresh open History modal (if visible)
+      try {
+        const hm = document.getElementById('historyModal');
+        if (hm && !hm.classList.contains('hidden') && window.__lastHistoryExId) {
+          openHistory(window.__lastHistoryExId);
+        }
+      } catch {}
+      // Refresh Weekly Summary chart if modal is open
+      try {
+        const wm = document.getElementById('weeklyModal');
+        if (wm && !wm.classList.contains('hidden')) { showWeeklySummary(); }
+      } catch {}
+      // Update History chart dataset labels if present
+      try {
+        if (window.__historyChart) {
+          const ch = window.__historyChart;
+          ch.data.datasets?.forEach((ds) => {
+            if (ds && typeof ds.label === 'string') {
+              if (/\bDone\b|^Done$/i.test(ds.label)) ds.label = t('chartDone');
+              if (/\bPlanned\b|^Planned$/i.test(ds.label)) ds.label = t('chartPlanned');
+            }
+          });
+          ch.update();
+        }
+      } catch {}
     } catch {}
   }
 
@@ -832,7 +870,7 @@
       try { window.open(url, '_blank'); } catch {}
     } catch (e) {
       console.error('Share card render failed:', e);
-      showToast('Could not create image');
+      showToast(t('couldNotCreateImage'));
     }
   }
 
@@ -894,7 +932,7 @@
 
   function openModal(mode, exercise) {
     editingId = exercise ? exercise.id : null;
-    el.modalTitle.textContent = mode === 'edit' ? 'Edit Exercise' : 'Add Exercise';
+    el.modalTitle.textContent = mode === 'edit' ? t('editTitle') : t('addTitle');
     // Templates: only show for Add mode
     if (el.templateRow) {
       el.templateRow.innerHTML = '';
@@ -918,7 +956,7 @@
         const custom = document.createElement('button');
         custom.type = 'button';
         custom.className = 'tpl-btn';
-        custom.textContent = 'Custom';
+        custom.textContent = t('customLabel');
         custom.addEventListener('click', () => fillFrom(null));
         el.templateRow.appendChild(custom);
       }
@@ -1373,7 +1411,7 @@
       const day = days7[idx];
       const val = values[idx];
       const unit = ex.unit || 'reps';
-      sparkTooltip.textContent = `${day}: ${val} ${unit}`;
+      sparkTooltip.textContent = `${day}: ${n(val)} ${unit}`;
       sparkTooltip.style.left = (evt.pageX || (rect.left + x + window.scrollX)) + 'px';
       sparkTooltip.style.top = (rect.top + window.scrollY) + 'px';
       sparkTooltip.style.opacity = 1;
@@ -1466,7 +1504,7 @@
     if (!ex) return;
     if (!ex.history) ex.history = {};
 
-    el.historyTitle.textContent = `History — ${ex.exerciseName || 'Exercise'}`;
+    el.historyTitle.textContent = `${t('history')} — ${ex.exerciseName || t('fallbackExercise')}`;
 
     const sumRange = (days) => {
       const keys = getRecentDays(days);
@@ -1488,9 +1526,9 @@
     const unit = ex.unit || 'reps';
     el.historyStats.innerHTML = `
       <div class="stack">
-        <div><strong>${t('pbDay')}:</strong> ${pb.date} ${pb.value} ${unit} • <strong>${t('longestStreakLbl')}:</strong> ${ls}</div>
-        <div><strong>${t('last7')}:</strong> ${t('plannedLbl')} ${s7.planned} ${unit}, ${t('doneLbl')} ${s7.done} ${unit} — ${r7}%</div>
-        <div><strong>${t('last30')}:</strong> ${t('plannedLbl')} ${s30.planned} ${unit}, ${t('doneLbl')} ${s30.done} ${unit} — ${r30}%</div>
+        <div><strong>${t('pbDay')}:</strong> ${pb.date} ${n(pb.value)} ${unit} • <strong>${t('longestStreakLbl')}:</strong> ${n(ls)}</div>
+        <div><strong>${t('last7')}:</strong> ${t('plannedLbl')} ${n(s7.planned)} ${unit}, ${t('doneLbl')} ${n(s7.done)} ${unit} — ${n(r7)}%</div>
+        <div><strong>${t('last30')}:</strong> ${t('plannedLbl')} ${n(s30.planned)} ${unit}, ${t('doneLbl')} ${n(s30.done)} ${unit} — ${n(r30)}%</div>
         ${earnedTitles.length ? `<div><strong>${t('achievementsLbl')}:</strong> ${earnedTitles.join(', ')}</div>` : ''}
       </div>`;
 
@@ -1503,12 +1541,15 @@
       row.className = 'row';
       row.innerHTML = `
         <div class="muted">${ds}</div>
-        <div>${t('plannedLbl')}: ${ent.planned} ${unit}</div>
-        <div>${t('doneLbl')}: ${ent.done} ${unit}</div>
-        <div>${pct}%</div>
+        <div>${t('plannedLbl')}: ${n(ent.planned)} ${unit}</div>
+        <div>${t('doneLbl')}: ${n(ent.done)} ${unit}</div>
+        <div>${n(pct)}%</div>
       `;
       el.historyList.appendChild(row);
     });
+
+    // remember for language refresh
+    try { window.__lastHistoryExId = exId; } catch {}
 
     // Tabs and chart
     const tabRecent = document.getElementById('tabRecent');
@@ -1795,7 +1836,7 @@
       // totals
       ctx.font = 'bold 120px system-ui';
       ctx.fillStyle = acc.trim();
-      ctx.fillText(`${totalDone} ${unit}`, P, P+230);
+      ctx.fillText(`${n(totalDone)} ${unit}`, P, P+230);
 
       ctx.font = '500 36px system-ui';
       ctx.fillStyle = 'rgba(255,255,255,0.8)';
@@ -2438,7 +2479,7 @@
       try {
         navigator.serviceWorker.addEventListener('message', (e) => {
           if (e && e.data && e.data.type === 'sw-updated') {
-            try { showToast?.('Updated — tap to reload'); } catch {}
+      try { showToast?.(t('updatedTap')); } catch {}
             const t = document.getElementById('toast');
             t?.addEventListener('click', () => location.reload());
           }
@@ -2468,16 +2509,16 @@
       });
       const rate = planned > 0 ? Math.round((done / planned) * 100) : 0;
       const unit = ex.unit || 'reps';
-      statsHTML += `<div><strong>${ex.exerciseName}:</strong> ${done}/${planned} ${unit} (${rate}%)</div>`;
+      statsHTML += `<div><strong>${ex.exerciseName}:</strong> ${n(done)}/${n(planned)} ${unit} (${n(rate)}%)</div>`;
       datasets.push({
-        label: ex.exerciseName + ' planned',
+        label: ex.exerciseName + ' ' + t('plannedLbl'),
         data: planArr,
         backgroundColor: 'rgba(200,200,200,0.2)',
         borderColor: 'rgba(200,200,200,0.5)',
         type: 'line'
       });
       datasets.push({
-        label: ex.exerciseName + ' done',
+        label: ex.exerciseName + ' ' + t('doneLbl'),
         data: doneArr,
         backgroundColor: ex.color || '#36a2eb'
       });
@@ -2526,7 +2567,7 @@
     const card = document.querySelector(`.ex-card[data-id="${ex.id}"]`);
     if (!card) { renderDashboard(); return; }
     const remainingEl = card.querySelector('.ex-remaining');
-    if (remainingEl) setText(remainingEl, String(ex.remaining ?? 0));
+    if (remainingEl) setText(remainingEl, n(ex.remaining ?? 0));
     const doneMsg = card.querySelector('.done-msg');
     if (doneMsg) {
       if ((ex.remaining ?? 0) <= 0) { doneMsg.removeAttribute('hidden'); setText(doneMsg, t('doneMsg')); }
@@ -2549,17 +2590,17 @@
       overChip = document.createElement('span');
       overChip.className = 'chip chip-over';
       overChip.setAttribute('hidden', '');
-      overChip.innerHTML = `+<span class="ex-over">0</span> over`;
+      overChip.innerHTML = `+<span class="ex-over">0</span> ${t('over')}`;
       statsWrap.appendChild(overChip);
     }
     const unit = ex.unit || 'reps';
-    if (dailyEl) setText(dailyEl, `${p} ${unit}`);
-    if (doneEl) setText(doneEl, `${d} ${unit}`);
-    if (leftEl) setText(leftEl, `${l} ${unit}`);
+    if (dailyEl) setText(dailyEl, `${n(p)} ${unit}`);
+    if (doneEl) setText(doneEl, `${n(d)} ${unit}`);
+    if (leftEl) setText(leftEl, `${n(l)} ${unit}`);
     if (overChip) {
       const overVal = Math.max(0, d - p);
       const overSpan = overChip.querySelector('.ex-over');
-      if (overSpan) setText(overSpan, String(overVal));
+      if (overSpan) setText(overSpan, n(overVal));
       if (overVal > 0) overChip.removeAttribute('hidden'); else overChip.setAttribute('hidden', '');
     }
     const ring = card.querySelector('.ring');
@@ -2621,7 +2662,7 @@
           titleEl.appendChild(document.createTextNode(' '));
           titleEl.appendChild(pill);
         }
-        pill.textContent = `${t('pbDay')}: ${pbMeta.value}`;
+        pill.textContent = `${t('pbDay')}: ${n(pbMeta.value)}`;
       } else if (pill) {
         pill.remove();
       }

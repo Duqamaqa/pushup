@@ -138,7 +138,7 @@
       shareProgress:'Share Progress', labelToday:'Today', labelThisWeek:'This Week', labelLast30:'Last 30 Days',
       myProgress:'My progress', ofFmt:'of {total} {unit} ({rate}%)', logged:'logged', imageDownloaded:'Image downloaded', couldNotCreateImage:'Could not create image', updatedTap:'Updated — tap to reload', customLabel:'Custom',
       last7Days:'Last 7 Days', currentStreak:'Current Streak', day:'day', days:'days',
-      pbDay:'PB Day', longestStreakLbl:'Longest Streak', last7:'Last 7 days', last30:'Last 30 days', plannedLbl:'Planned', doneLbl:'Done', achievementsLbl:'Achievements',
+      pbDay:'Record', longestStreakLbl:'Longest Streak', last7:'Last 7 days', last30:'Last 30 days', plannedLbl:'Planned', doneLbl:'Done', achievementsLbl:'Achievements',
       toastLoggedMinus:'Logged −{n}', toastAddedTimes:'Added +{times}× target',
       importSuccess:'Import successful', importFailed:'Failed to import JSON: {msg}', lbSaved:'Leaderboard settings saved', cfgSupabaseFirst:'Configure Supabase first',
       noScores:'No scores yet for this week.', plusLogged:'+{v} logged', minusLogged:'−{n} logged', plusAdded:'+{n} added',
@@ -1310,12 +1310,14 @@
   function getQuickStepsFor(ex) {
     // Parse and sanitize quick steps; fallback to default set
     const uniq = (arr) => Array.from(new Set(arr));
+    const defaults = [5, 10, 15, 20];
     let steps = [];
     if (Array.isArray(ex.quickSteps) && ex.quickSteps.length) {
       steps = ex.quickSteps.map(Number).filter((n) => Number.isFinite(n) && n >= 1 && n <= 999);
-    }
-    if (!steps.length) {
-      steps = [5, 10, 20];
+      // If fewer than 4 provided, top up with defaults to reach four buttons
+      if (steps.length < 4) steps = steps.concat(defaults);
+    } else {
+      steps = defaults.slice();
     }
     steps = uniq(steps).sort((a, b) => a - b).slice(0, 4);
     return steps;

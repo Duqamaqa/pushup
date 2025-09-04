@@ -819,3 +819,36 @@ body.no-scroll { overflow: hidden; }
 
 /* Make the Dark toggle easy to spot */
 #settingsModal .row .switch { transform: scale(1.05); }
+
+/* Typography bump: make text slightly larger app-wide */
+html { font-size: 106.25%; } /* ~17px base for rem */
+
+/* Common controls and messages */
+#toast { font-size: 17px; }
+input[type="text"],
+input[type="number"] { font-size: 17px; }
+button { font-size: 18px; }
+.error-msg { font-size: 13px; }
+
+/* Small text elements */
+.field.compact label { font-size: 14px; }
+.note { font-size: 14px; }
+.streak { font-size: 14px; }
+.chip { font-size: 14px; }
+.pill { font-size: 13px; }
+.mono { font-size: 14px; }
+.switch { font-size: 15px; }
+.history-list .row { font-size: 15px; }
+.acc-header { font-size: 17px; }
+.section-title { font-size: 1rem; }
+
+/* Feature-specific text */
+.ex-title { font-size: 19px; }
+.ex-tip { font-size: 14px; }
+#weeklyStats { font-size: 15px; }
+.tabs button { font-size: 13px; }
+.template-row .tpl-btn { font-size: 13px; }
+.spark-tooltip { font-size: 13px; }
+.wp-label { font-size: 14px; }
+.about { font-size: 14px; }
+.about-name { font-size: 15px; }

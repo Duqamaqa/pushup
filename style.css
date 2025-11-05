@@ -837,7 +837,7 @@ body.no-scroll { overflow: hidden; }
   border-top: 1px solid rgba(255,255,255,0.08);
 }
 
-.theme-quest body {
+body.theme-quest {
   background: var(--bg);
   color: var(--fg);
   display: flex;
@@ -847,7 +847,7 @@ body.no-scroll { overflow: hidden; }
   padding: clamp(20px, 5vw, 48px);
   overflow: hidden;
 }
-.theme-quest .container {
+body.theme-quest .container {
   display: none;
 }
 

@@ -29,7 +29,9 @@
   const ACC_KEY = 'settingsAccordionOpen';
   const THEME_KEY = 'theme';
   const THEMES = ['light', 'dark', 'quest'];
-  const prefersDarkMedia = window.matchMedia('(prefers-color-scheme: dark)');
+  const prefersDarkMedia = (typeof window !== 'undefined' && typeof window.matchMedia === 'function')
+    ? window.matchMedia('(prefers-color-scheme: dark)')
+    : null;
   // Optional Supabase (configured via Settings)
   const SUPABASE_URL = '';
   const SUPABASE_ANON = '';
@@ -130,6 +132,7 @@
       username:'Username', supabaseUrl:'Supabase URL', supabaseKey:'Supabase Key (anon)',
       saveLb:'Save Leaderboard Settings', openLb:'Friend Leaderboard', addNew:'+ Add New Exercise',
       showWeeklyNow:'Show Weekly Summary', toggleDebugPanel:'Toggle Debug Panel',
+      themeLabel:'Theme', themeLight:'Light', themeDark:'Dark', themeQuest:'Quest',
       deleteExercise:'Delete',
       confirmDelete:'Delete "{name}"? This removes its history.',
       deleteToast:'Removed {name}.',
@@ -137,6 +140,11 @@
       soloProgramApplied:'Solo Leveling boost applied!',
       soloProgramPartial:'Solo Leveling boost applied (missing: {missing}).',
       soloProgramMissing:'Add those exercises first.',
+      soloProgramCreated:'Summoned: {list}.',
+      questSystemMessage:'SYSTEM MESSAGE', questTitle:'Daily Quest: Getting Stronger', questTasks:'Tasks',
+      questNoTasks:'No exercises yet. Add one to begin.', questRewards:'Rewards', questReward1:'+3 Stat Points',
+      questReward2:'Increased Strength', questReward3:'Enhanced Dexterity', questPenalty:'Penalty',
+      questPenaltyText:'Transfer to Penalty Zone if quest not completed.', startQuest:'Start Quest',
       selectExercise:'Select exercise', customDecrement:'Custom decrement', customApply:'Apply',
       shareToday:'Share: Today', shareWeek:'Share: Week', shareMonth:'Share: Month', shareProgressCard:'Share Progress Card',
       langTitle:'Language', langCancel:'Cancel',
@@ -176,6 +184,7 @@
       username:'Benutzername', supabaseUrl:'Supabase‑URL', supabaseKey:'Supabase‑Schlüssel (anon)',
       saveLb:'Ranglisten‑Einstellungen speichern', openLb:'Freundes‑Rangliste', addNew:'+ Neue Übung hinzufügen',
       showWeeklyNow:'Wöchentliche Übersicht zeigen', toggleDebugPanel:'Debug‑Panel umschalten',
+      themeLabel:'Thema', themeLight:'Hell', themeDark:'Dunkel', themeQuest:'Quest',
       deleteExercise:'Löschen',
       confirmDelete:'„{name}“ löschen? Dadurch wird der Verlauf entfernt.',
       deleteToast:'„{name}“ entfernt.',
@@ -183,6 +192,11 @@
       soloProgramApplied:'Solo Leveling Boost aktiviert!',
       soloProgramPartial:'Solo Leveling Boost aktiviert (fehlt: {missing}).',
       soloProgramMissing:'Füge zuerst diese Übungen hinzu.',
+      soloProgramCreated:'Beschworen: {list}.',
+      questSystemMessage:'SYSTEMNACHRICHT', questTitle:'Tägliche Quest: Werde stärker', questTasks:'Aufgaben',
+      questNoTasks:'Noch keine Übungen. Füge eine hinzu, um zu starten.', questRewards:'Belohnungen',
+      questReward1:'+3 Attributpunkte', questReward2:'Gesteigerte Stärke', questReward3:'Verbesserte Beweglichkeit',
+      questPenalty:'Strafe', questPenaltyText:'Transfer in die Strafzone, falls die Quest scheitert.', startQuest:'Quest starten',
       selectExercise:'Übung auswählen', customDecrement:'Benutzerdef. Abzug', customApply:'Anwenden',
       shareToday:'Teilen: Heute', shareWeek:'Teilen: Woche', shareMonth:'Teilen: Monat', shareProgressCard:'Fortschrittskarte teilen',
       langTitle:'Sprache', langCancel:'Abbrechen',
@@ -222,6 +236,7 @@
       username:'Имя пользователя', supabaseUrl:'Supabase URL', supabaseKey:'Ключ Supabase (anon)',
       saveLb:'Сохранить настройки таблицы', openLb:'Таблица друзей', addNew:'+ Добавить упражнение',
       showWeeklyNow:'Показать недельную сводку', toggleDebugPanel:'Переключить панель отладки',
+      themeLabel:'Тема', themeLight:'Светлая', themeDark:'Тёмная', themeQuest:'Квест',
       deleteExercise:'Удалить',
       confirmDelete:'Удалить «{name}»? Это удалит историю.',
       deleteToast:'Удалено: {name}.',
@@ -229,6 +244,11 @@
       soloProgramApplied:'Буст Solo Leveling применён!',
       soloProgramPartial:'Буст Solo Leveling применён (нет: {missing}).',
       soloProgramMissing:'Сначала добавьте эти упражнения.',
+      soloProgramCreated:'Добавлено: {list}.',
+      questSystemMessage:'СИСТЕМНОЕ СООБЩЕНИЕ', questTitle:'Ежедневный квест: Стань сильнее', questTasks:'Задания',
+      questNoTasks:'Пока нет упражнений. Добавьте их, чтобы начать.', questRewards:'Награды',
+      questReward1:'+3 очка характеристик', questReward2:'Повышенная сила', questReward3:'Улучшенная ловкость',
+      questPenalty:'Наказание', questPenaltyText:'Перемещение в зону наказаний, если квест не выполнен.', startQuest:'Начать квест',
       selectExercise:'Выбрать упражнение', customDecrement:'Произвольное уменьшение', customApply:'Применить',
       shareToday:'Поделиться: Сегодня', shareWeek:'Поделиться: Неделя', shareMonth:'Поделиться: Месяц', shareProgressCard:'Поделиться карточкой',
       langTitle:'Язык', langCancel:'Отмена',
@@ -282,8 +302,8 @@
     try {
       const dict = I18N[lang] || I18N.en;
       try { document.documentElement.setAttribute('lang', (I18N[lang] ? lang : 'en')); } catch {}
-      // Dark toggle label
-      setText(document.querySelector('label[for="darkToggle"]'), dict.dark);
+      const themeLabelEl = document.querySelector('[data-i18n="themeLabel"]');
+      if (themeLabelEl) setText(themeLabelEl, dict.themeLabel);
       // Share button in Settings header
       setText(document.getElementById('openShareBtn'), dict.share);
       // Add buttons
@@ -1086,6 +1106,7 @@
   function toggleQuestOverlay(active) {
     const overlay = el.questOverlay;
     if (!overlay) return;
+    overlay.setAttribute('aria-hidden', active ? 'false' : 'true');
     if (active) {
       overlay.removeAttribute('hidden');
       requestAnimationFrame(() => overlay.classList.add('is-active'));
@@ -1105,6 +1126,7 @@
     const items = Array.isArray(list) ? list : [];
     if (!items.length) {
       el.questEmpty?.removeAttribute('hidden');
+      toggleQuestOverlay(true);
       return;
     }
     el.questEmpty?.setAttribute('hidden', '');
@@ -1132,6 +1154,7 @@
       questTaskRows.push({ row, fill, label: labelEl, target, name: ex.exerciseName || t('fallbackExercise') });
     });
     tasksRoot.appendChild(frag);
+    toggleQuestOverlay(true);
     resetQuestProgress();
   }
 
@@ -1211,11 +1234,13 @@
   function applyTheme(mode, { persist = true } = {}) {
     const root = document.documentElement;
     const body = document.body;
-    const target = THEMES.includes(mode) ? mode : (prefersDarkMedia.matches ? 'dark' : 'light');
+    const target = THEMES.includes(mode) ? mode : ((prefersDarkMedia?.matches) ? 'dark' : 'light');
     ['theme-light', 'theme-dark', 'theme-quest'].forEach((c) => {
       root.classList.remove(c);
       body.classList.remove(c);
     });
+    root.classList.remove('dark');
+    body.classList.remove('dark');
     root.classList.add(`theme-${target}`);
     body.classList.add(`theme-${target}`);
     root.setAttribute('data-theme', target);
@@ -1240,6 +1265,10 @@
     const dash = el.list || document.getElementById('exerciseListContainer');
     if (!dash) return;
     dash.innerHTML = '';
+
+    if (isQuestTheme()) {
+      renderQuestOverlay(list);
+    }
 
     // First-time onboarding view
     if (list.length === 0) {
@@ -1942,7 +1971,7 @@
     }
     const initialTheme = manualThemeSelection && storedTheme
       ? storedTheme
-      : (prefersDarkMedia.matches ? 'dark' : 'light');
+      : ((prefersDarkMedia?.matches) ? 'dark' : 'light');
     applyTheme(initialTheme, { persist: manualThemeSelection });
     themeButtons.forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -1952,10 +1981,17 @@
         applyTheme(value, { persist: true });
       });
     });
-    prefersDarkMedia.addEventListener('change', (event) => {
-      if (manualThemeSelection) return;
-      applyTheme(event.matches ? 'dark' : 'light', { persist: false });
-    });
+    if (prefersDarkMedia) {
+      const handleScheme = (event) => {
+        if (manualThemeSelection) return;
+        applyTheme(event.matches ? 'dark' : 'light', { persist: false });
+      };
+      if (typeof prefersDarkMedia.addEventListener === 'function') {
+        prefersDarkMedia.addEventListener('change', handleScheme);
+      } else if (typeof prefersDarkMedia.addListener === 'function') {
+        prefersDarkMedia.addListener(handleScheme);
+      }
+    }
 
     el.questStartBtn?.addEventListener('click', () => {
       animateQuestProgress();
@@ -2286,8 +2322,7 @@
     }
 
     soloProgramBtn?.addEventListener('click', () => {
-      const list = loadExercises();
-      if (!list.length) { showToast(t('soloProgramMissing')); return; }
+      const list = loadExercises() || [];
       const normalize = (value) => (value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
       const usedIndexes = new Set();
       const findMatch = (variants) => {
@@ -2306,17 +2341,36 @@
       };
       const today = todayStrUTC();
       const specs = [
-        { names: ['push-ups', 'push ups', 'pushups'], amount: 100, label: 'Push-ups' },
-        { names: ['squats', 'squat', 'squads'], amount: 100, label: 'Squats' },
-        { names: ['twists', 'twist'], amount: 100, label: 'Twists' },
-        { names: ['running', 'run'], amount: 10, label: 'Running' },
+        { names: ['push-ups', 'push ups', 'pushups'], amount: 100, label: 'Push-ups', unit: 'reps' },
+        { names: ['squats', 'squat', 'squads'], amount: 100, label: 'Squats', unit: 'reps' },
+        { names: ['twists', 'twist'], amount: 100, label: 'Twists', unit: 'reps' },
+        { names: ['running', 'run'], amount: 10, label: 'Running', unit: 'km' },
       ];
       const updated = [];
-      const missing = [];
+      const created = [];
       specs.forEach((spec) => {
         const match = findMatch(spec.names);
         if (!match) {
-          missing.push(spec.label);
+          const newEx = {
+            id: uuid(),
+            exerciseName: spec.label,
+            unit: spec.unit || 'reps',
+            dailyTarget: spec.amount,
+            weeklyGoal: spec.unit === 'km' ? Math.round(spec.amount * 5) : spec.amount * 7,
+            remaining: 0,
+            lastAppliedDate: today,
+            quickSteps: [Math.max(1, Math.round(spec.amount / 2)), spec.amount].filter((v, i, arr) => arr.indexOf(v) === i),
+            history: {},
+            badges: [],
+          };
+          const entry = ensureHistory(newEx, today);
+          entry.planned = spec.amount;
+          entry.done = spec.amount;
+          list.push(newEx);
+          ensureBadges(newEx);
+          checkAchievements(newEx);
+          updated.push(newEx);
+          created.push(spec.label);
           return;
         }
         usedIndexes.add(match.idx);
@@ -2336,7 +2390,7 @@
         updated.push(ex);
       });
       if (!updated.length) { showToast(t('soloProgramMissing')); return; }
-      saveDebounced(() => saveExercises(list));
+      saveExercises(list);
       updated.forEach((ex) => {
         updateExerciseCardView(ex);
         const card = document.querySelector(`.ex-card[data-id="${ex.id}"]`);
@@ -2346,7 +2400,9 @@
         const cfg = getLbConfig();
         if (cfg.name && cfg.url && cfg.key) upsertScore(cfg.name, computeWeeklyTotalAll());
       } catch {}
-      const message = missing.length ? t('soloProgramPartial', { missing: missing.join(', ') }) : t('soloProgramApplied');
+      const message = created.length
+        ? `${t('soloProgramApplied')} ${created.length ? t('soloProgramCreated', { list: created.join(', ') }) : ''}`.trim()
+        : t('soloProgramApplied');
       showToast(message);
     });
 
@@ -2383,42 +2439,6 @@
         try { localStorage.setItem(LANG_KEY, v); } catch {}
         langModal?.classList.add('hidden');
         try { applyLanguage?.(v); } catch {}
-      });
-    });
-
-    // Theme toggle wiring (modal)
-    darkToggle?.addEventListener('change', () => {
-      const useDark = !!darkToggle.checked;
-      document.documentElement.classList.toggle('dark', useDark);
-      localStorage.setItem('theme', useDark ? 'dark' : 'light');
-      if (window.__historyChart) {
-        const cs = getComputedStyle(document.documentElement);
-        const fg = (cs.getPropertyValue('--fg') || '#111').trim();
-        const grid = (cs.getPropertyValue('--border') || '#ddd').trim();
-        try {
-          window.__historyChart.options.plugins.legend.labels.color = fg;
-          if (window.__historyChart.options.scales?.x) {
-            window.__historyChart.options.scales.x.ticks.color = fg;
-            window.__historyChart.options.scales.x.grid.color = grid;
-          }
-          if (window.__historyChart.options.scales?.y) {
-            window.__historyChart.options.scales.y.ticks.color = fg;
-            window.__historyChart.options.scales.y.grid.color = grid;
-          }
-          window.__historyChart.update();
-        } catch {}
-      }
-      // Redraw all sparklines with new theme-accent
-      const listNow = loadExercises() || [];
-      document.querySelectorAll('.ex-card').forEach((cardEl) => {
-        const id = cardEl.getAttribute('data-id');
-        const ex = listNow.find(e => e.id === id);
-        const canvas = cardEl.querySelector('.ex-sparkline');
-        if (ex && canvas) {
-          const days7 = getRecentDays(7);
-          const series = days7.map(d => Number(ex.history?.[d]?.done || 0));
-          try { drawSparkline(canvas, series); } catch {}
-        }
       });
     });
 

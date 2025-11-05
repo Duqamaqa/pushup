@@ -112,11 +112,12 @@
           </button>
           <div class="acc-panel">
             <div class="row between">
-              <label for="darkToggle" class="label" data-i18n="dark">Dark</label>
-              <label class="switch">
-                <input type="checkbox" id="darkToggle">
-                <span class="slider"></span>
-              </label>
+              <label class="label" data-i18n="themeLabel">Theme</label>
+              <div class="theme-switch" role="group" aria-label="Theme" data-i18n-aria-label="themeLabel">
+                <button type="button" class="theme-option" data-theme-option="light"><span data-i18n="themeLight">Light</span></button>
+                <button type="button" class="theme-option" data-theme-option="dark"><span data-i18n="themeDark">Dark</span></button>
+                <button type="button" class="theme-option" data-theme-option="quest"><span data-i18n="themeQuest">Quest</span></button>
+              </div>
             </div>
             <div class="row">
               <button id="exportBtn" class="btn wfull" data-i18n="exportJson">Export JSON</button>
@@ -152,6 +153,9 @@
             </div>
             <div class="row">
               <button id="showWeeklyNowBtn" class="btn wfull" data-i18n="showWeeklyNow">Show Weekly Summary</button>
+            </div>
+            <div class="row">
+              <button id="soloProgramBtn" class="btn wfull" data-i18n="soloProgram">Solo Leveling Program</button>
             </div>
             <div class="row">
               <button id="toggleDebugBtn" class="btn wfull" data-i18n="toggleDebugPanel">Toggle Debug Panel</button>
@@ -295,6 +299,43 @@
       <div class="modal-actions">
         <button id="langCancelBtn" class="btn" data-i18n="langCancel">Cancel</button>
       </div>
+    </div>
+  </div>
+
+  <div id="questOverlay" class="quest-overlay hidden" aria-hidden="true">
+    <div class="quest-panel">
+      <button type="button" id="questSettingsBtn" class="quest-settings" aria-label="Open Settings">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+          <path d="M19.14 12.94a7 7 0 0 0 0-1.88l1.83-1.42a1 1 0 0 0 .24-1.3l-1.73-3a1 1 0 0 0-1.21-.44l-2.16.87a6.94 6.94 0 0 0-1.62-.94l-.33-2.3A1 1 0 0 0 12.19 2h-2.38a1 1 0 0 0-.99.83l-.33 2.3a6.94 6.94 0 0 0-1.62.94l-2.16-.87a1 1 0 0 0-1.21.44l-1.73 3a1 1 0 0 0 .24 1.3l1.83 1.42a7 7 0 0 0 0 1.88l-1.83 1.42a1 1 0 0 0-.24 1.3l1.73 3a1 1 0 0 0 1.21.44l2.16-.87a6.94 6.94 0 0 0 1.62.94l.33 2.3a1 1 0 0 0 .99.83h2.38a1 1 0 0 0 .99-.83l.33-2.3a6.94 6.94 0 0 0 1.62-.94l2.16.87a1 1 0 0 0 1.21-.44l1.73-3a1 1 0 0 0-.24-1.3Zm-7.33 2.56a3.5 3.5 0 1 1 3.5-3.5 3.5 3.5 0 0 1-3.5 3.5Z"/>
+        </svg>
+      </button>
+      <div class="quest-top">
+        <span class="quest-system" data-i18n="questSystemMessage">SYSTEM MESSAGE</span>
+        <h2 class="quest-title" data-i18n="questTitle">Daily Quest: Getting Stronger</h2>
+        <div class="quest-accent"></div>
+      </div>
+      <div class="quest-body">
+        <section class="quest-section quest-section-tasks">
+          <h3 data-i18n="questTasks">Tasks</h3>
+          <p id="questEmpty" class="quest-empty" data-i18n="questNoTasks" hidden>No exercises yet. Add one to begin.</p>
+          <div id="questTasks" class="quest-tasks"></div>
+        </section>
+        <section class="quest-section">
+          <h3 data-i18n="questRewards">Rewards</h3>
+          <ul class="quest-list">
+            <li data-i18n="questReward1">+3 Stat Points</li>
+            <li data-i18n="questReward2">Increased Strength</li>
+            <li data-i18n="questReward3">Enhanced Dexterity</li>
+          </ul>
+        </section>
+        <section class="quest-section">
+          <h3 data-i18n="questPenalty">Penalty</h3>
+          <p data-i18n="questPenaltyText">Transfer to Penalty Zone if quest not completed.</p>
+        </section>
+      </div>
+      <button type="button" id="questStartBtn" class="quest-start-btn">
+        <span data-i18n="startQuest">Start Quest</span>
+      </button>
     </div>
   </div>
 </body>

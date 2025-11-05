@@ -27,6 +27,9 @@
   const LIST_KEY = 'exerciseList';
   const HISTORY_MAX_DAYS = 366;
   const ACC_KEY = 'settingsAccordionOpen';
+  const THEME_KEY = 'theme';
+  const THEMES = ['light', 'dark', 'quest'];
+  const prefersDarkMedia = window.matchMedia('(prefers-color-scheme: dark)');
   // Optional Supabase (configured via Settings)
   const SUPABASE_URL = '';
   const SUPABASE_ANON = '';
@@ -127,6 +130,13 @@
       username:'Username', supabaseUrl:'Supabase URL', supabaseKey:'Supabase Key (anon)',
       saveLb:'Save Leaderboard Settings', openLb:'Friend Leaderboard', addNew:'+ Add New Exercise',
       showWeeklyNow:'Show Weekly Summary', toggleDebugPanel:'Toggle Debug Panel',
+      deleteExercise:'Delete',
+      confirmDelete:'Delete "{name}"? This removes its history.',
+      deleteToast:'Removed {name}.',
+      soloProgram:'Solo Leveling Program',
+      soloProgramApplied:'Solo Leveling boost applied!',
+      soloProgramPartial:'Solo Leveling boost applied (missing: {missing}).',
+      soloProgramMissing:'Add those exercises first.',
       selectExercise:'Select exercise', customDecrement:'Custom decrement', customApply:'Apply',
       shareToday:'Share: Today', shareWeek:'Share: Week', shareMonth:'Share: Month', shareProgressCard:'Share Progress Card',
       langTitle:'Language', langCancel:'Cancel',
@@ -166,6 +176,13 @@
       username:'Benutzername', supabaseUrl:'Supabase‑URL', supabaseKey:'Supabase‑Schlüssel (anon)',
       saveLb:'Ranglisten‑Einstellungen speichern', openLb:'Freundes‑Rangliste', addNew:'+ Neue Übung hinzufügen',
       showWeeklyNow:'Wöchentliche Übersicht zeigen', toggleDebugPanel:'Debug‑Panel umschalten',
+      deleteExercise:'Löschen',
+      confirmDelete:'„{name}“ löschen? Dadurch wird der Verlauf entfernt.',
+      deleteToast:'„{name}“ entfernt.',
+      soloProgram:'Solo Leveling Programm',
+      soloProgramApplied:'Solo Leveling Boost aktiviert!',
+      soloProgramPartial:'Solo Leveling Boost aktiviert (fehlt: {missing}).',
+      soloProgramMissing:'Füge zuerst diese Übungen hinzu.',
       selectExercise:'Übung auswählen', customDecrement:'Benutzerdef. Abzug', customApply:'Anwenden',
       shareToday:'Teilen: Heute', shareWeek:'Teilen: Woche', shareMonth:'Teilen: Monat', shareProgressCard:'Fortschrittskarte teilen',
       langTitle:'Sprache', langCancel:'Abbrechen',
@@ -205,6 +222,13 @@
       username:'Имя пользователя', supabaseUrl:'Supabase URL', supabaseKey:'Ключ Supabase (anon)',
       saveLb:'Сохранить настройки таблицы', openLb:'Таблица друзей', addNew:'+ Добавить упражнение',
       showWeeklyNow:'Показать недельную сводку', toggleDebugPanel:'Переключить панель отладки',
+      deleteExercise:'Удалить',
+      confirmDelete:'Удалить «{name}»? Это удалит историю.',
+      deleteToast:'Удалено: {name}.',
+      soloProgram:'Solo Leveling программа',
+      soloProgramApplied:'Буст Solo Leveling применён!',
+      soloProgramPartial:'Буст Solo Leveling применён (нет: {missing}).',
+      soloProgramMissing:'Сначала добавьте эти упражнения.',
       selectExercise:'Выбрать упражнение', customDecrement:'Произвольное уменьшение', customApply:'Применить',
       shareToday:'Поделиться: Сегодня', shareWeek:'Поделиться: Неделя', shareMonth:'Поделиться: Месяц', shareProgressCard:'Поделиться карточкой',
       langTitle:'Язык', langCancel:'Отмена',
@@ -717,6 +741,11 @@
     historyList: document.getElementById('historyList'),
     historyChart: document.getElementById('historyChart'),
     closeHistory: document.getElementById('closeHistory'),
+    questOverlay: document.getElementById('questOverlay'),
+    questTasks: document.getElementById('questTasks'),
+    questEmpty: document.getElementById('questEmpty'),
+    questStartBtn: document.getElementById('questStartBtn'),
+    questSettingsBtn: document.getElementById('questSettingsBtn'),
   };
   // Weekly Summary modal elements
   const weeklyModal = document.getElementById('weeklyModal');
@@ -728,6 +757,9 @@
   const shareCardBtn = document.getElementById('shareCardBtn');
   const leaderboardModal = document.getElementById('leaderboardModal');
   const leaderboardList = document.getElementById('leaderboardList');
+  let manualThemeSelection = false;
+  let themeButtons = [];
+  let questTaskRows = [];
 
   async function renderHistoryChart(mode, ex) {
     if (window.__historyChart) {
@@ -1038,6 +1070,169 @@
     // removed: decrement step validation
   }
 
+  function isQuestTheme() {
+    return document.documentElement.classList.contains('theme-quest');
+  }
+
+  function setActiveThemeButton(mode) {
+    themeButtons.forEach((btn) => {
+      const value = btn.getAttribute('data-theme-option');
+      const isActive = value === mode;
+      btn.classList.toggle('is-active', isActive);
+      btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  }
+
+  function toggleQuestOverlay(active) {
+    const overlay = el.questOverlay;
+    if (!overlay) return;
+    if (active) {
+      overlay.removeAttribute('hidden');
+      requestAnimationFrame(() => overlay.classList.add('is-active'));
+    } else {
+      overlay.classList.remove('is-active');
+      setTimeout(() => {
+        if (!overlay.classList.contains('is-active')) overlay.setAttribute('hidden', '');
+      }, 520);
+    }
+  }
+
+  function renderQuestOverlay(list) {
+    const tasksRoot = el.questTasks;
+    if (!tasksRoot) return;
+    questTaskRows = [];
+    tasksRoot.innerHTML = '';
+    const items = Array.isArray(list) ? list : [];
+    if (!items.length) {
+      el.questEmpty?.removeAttribute('hidden');
+      return;
+    }
+    el.questEmpty?.setAttribute('hidden', '');
+    const frag = document.createDocumentFragment();
+    items.forEach((ex) => {
+      const row = document.createElement('div');
+      row.className = 'quest-task';
+      const icon = document.createElement('div');
+      icon.className = 'quest-task-icon';
+      const nameEl = document.createElement('div');
+      nameEl.className = 'quest-task-name';
+      nameEl.textContent = ex.exerciseName || t('fallbackExercise');
+      const labelEl = document.createElement('div');
+      labelEl.className = 'quest-progress-label';
+      const targetRaw = Number(ex.dailyTarget || ex.weeklyGoal || ex.remaining || 100);
+      const target = Math.max(1, targetRaw || 100);
+      labelEl.textContent = `${n(0)} / ${n(target)}`;
+      const progress = document.createElement('div');
+      progress.className = 'quest-progress';
+      const fill = document.createElement('div');
+      fill.className = 'quest-progress-fill';
+      progress.appendChild(fill);
+      row.append(icon, nameEl, labelEl, progress);
+      frag.appendChild(row);
+      questTaskRows.push({ row, fill, label: labelEl, target, name: ex.exerciseName || t('fallbackExercise') });
+    });
+    tasksRoot.appendChild(frag);
+    resetQuestProgress();
+  }
+
+  function resetQuestProgress() {
+    questTaskRows.forEach((item) => {
+      const { fill, label, target } = item;
+      if (!fill || !label) return;
+      fill.style.transition = 'none';
+      fill.style.width = '0%';
+      void fill.offsetWidth;
+      fill.style.transition = '';
+      label.textContent = `${n(0)} / ${n(target)}`;
+    });
+  }
+
+  function animateQuestProgress() {
+    if (!questTaskRows.length) return;
+    resetQuestProgress();
+    const runs = questTaskRows.map((item) => {
+      const percent = Math.floor(30 + Math.random() * 51);
+      const finalValue = Math.max(1, Math.round(item.target * (percent / 100)));
+      return { ...item, percent, finalValue };
+    });
+    requestAnimationFrame(() => {
+      runs.forEach((item) => {
+        if (item.fill) item.fill.style.width = `${item.percent}%`;
+      });
+      const start = performance.now();
+      const duration = 2400;
+      function step(now) {
+        const factor = Math.min((now - start) / duration, 1);
+        runs.forEach((item) => {
+          if (!item.label) return;
+          const value = Math.round(item.finalValue * factor);
+          item.label.textContent = `${n(value)} / ${n(item.target)}`;
+        });
+        if (factor < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  function onThemeApplied(mode, listNow) {
+    if (window.__historyChart) {
+      const cs = getComputedStyle(document.documentElement);
+      const fg = (cs.getPropertyValue('--fg') || '#111').trim();
+      const grid = (cs.getPropertyValue('--border') || '#ddd').trim();
+      try {
+        window.__historyChart.options.plugins.legend.labels.color = fg;
+        if (window.__historyChart.options.scales?.x) {
+          window.__historyChart.options.scales.x.ticks.color = fg;
+          window.__historyChart.options.scales.x.grid.color = grid;
+        }
+        if (window.__historyChart.options.scales?.y) {
+          window.__historyChart.options.scales.y.ticks.color = fg;
+          window.__historyChart.options.scales.y.grid.color = grid;
+        }
+        window.__historyChart.update();
+      } catch {}
+    }
+    const list = Array.isArray(listNow) ? listNow : (loadExercises() || []);
+    document.querySelectorAll('.ex-card').forEach((cardEl) => {
+      const id = cardEl.getAttribute('data-id');
+      const ex = list.find((e) => e.id === id);
+      const canvas = cardEl.querySelector('.ex-sparkline');
+      if (ex && canvas) {
+        const days7 = getRecentDays(7);
+        const series = days7.map((d) => Number(ex.history?.[d]?.done || 0));
+        try { drawSparkline(canvas, series); } catch {}
+      }
+    });
+    if (mode === 'quest') {
+      renderQuestOverlay(list);
+    }
+  }
+
+  function applyTheme(mode, { persist = true } = {}) {
+    const root = document.documentElement;
+    const body = document.body;
+    const target = THEMES.includes(mode) ? mode : (prefersDarkMedia.matches ? 'dark' : 'light');
+    ['theme-light', 'theme-dark', 'theme-quest'].forEach((c) => {
+      root.classList.remove(c);
+      body.classList.remove(c);
+    });
+    root.classList.add(`theme-${target}`);
+    body.classList.add(`theme-${target}`);
+    root.setAttribute('data-theme', target);
+    if (persist) {
+      try { localStorage.setItem(THEME_KEY, target); } catch {}
+    }
+    setActiveThemeButton(target);
+    const listNow = loadExercises() || [];
+    if (target === 'quest') {
+      toggleQuestOverlay(true);
+      renderQuestOverlay(listNow);
+    } else {
+      toggleQuestOverlay(false);
+    }
+    onThemeApplied(target, listNow);
+  }
+
   // ---------- Rendering ----------
   function renderDashboard() {
     const list = loadExercises() || [];
@@ -1106,7 +1301,18 @@
         <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
           <path d="M3 17.25V21h3.75l11-11-3.75-3.75-11 11Zm14.71-9.46a1 1 0 0 0 0-1.41l-1.59-1.59a1 1 0 0 0-1.41 0l-1.13 1.13 3 3 1.13-1.13Z"/>
         </svg>`;
-      header.append(h3, editBtn);
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'icon-btn ex-delete';
+      deleteBtn.title = t('deleteExercise');
+      deleteBtn.setAttribute('aria-label', t('deleteExercise'));
+      deleteBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+          <path d="M9 3v1H4v2h16V4h-5V3H9Zm-1 6v9a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V9H8Zm3 2h2v7h-2z"/>
+        </svg>`;
+      const actions = document.createElement('div');
+      actions.className = 'ex-actions';
+      actions.append(editBtn, deleteBtn);
+      header.append(h3, actions);
 
       // Progress ring with remaining inside
       const progress = document.createElement('div');
@@ -1114,7 +1320,7 @@
       const ring = document.createElement('div');
       ring.className = 'ring';
       const initPct = (pct * 100).toFixed(2);
-      ring.style.background = `conic-gradient(var(--accent) ${initPct}%, var(--track) 0)`;
+      try { ring.style.setProperty('--pct', String(initPct)); } catch { ring.style.background = `conic-gradient(var(--accent) ${initPct}%, var(--track) 0)`; }
       const ringHole = document.createElement('div');
       ringHole.className = 'ring-hole';
       const remainingEl = document.createElement('div');
@@ -1287,6 +1493,13 @@
       editBtn.addEventListener('click', () => {
         openModal('edit', ex);
       });
+
+      deleteBtn.addEventListener('click', () => {
+        const name = ex.exerciseName || t('fallbackExercise');
+        const ok = window.confirm(t('confirmDelete', { name }));
+        if (!ok) return;
+        deleteExerciseById(ex.id);
+      });
     });
     el.list.appendChild(containerFrag);
 
@@ -1452,6 +1665,28 @@
       if (typeof saveDebounced === 'function') saveDebounced(() => saveExercises(items));
       else saveExercises(items);
     }
+  }
+
+  function deleteExerciseById(exId){
+    if (!exId) return false;
+    const items = loadExercises() || [];
+    const idx = items.findIndex(i => i.id === exId);
+    if (idx < 0) return false;
+    const [removed] = items.splice(idx, 1);
+    saveExercises(items);
+    try { invalidateStreak(exId); } catch {}
+    try { longestStreakCache.delete(exId); } catch {}
+    renderDashboard();
+    try { window.dispatchEvent(new CustomEvent('exercise-deleted', { detail: { id: exId } })); } catch {}
+    try {
+      const cfg = getLbConfig();
+      if (cfg.name && cfg.url && cfg.key) upsertScore(cfg.name, computeWeeklyTotalAll());
+    } catch {}
+    try {
+      const name = removed?.exerciseName || t('fallbackExercise');
+      showToast(t('deleteToast', { name }));
+    } catch {}
+    return true;
   }
 
   function attachQuickStepHandlers(btn, ex, amount, updateCard){
@@ -1660,17 +1895,12 @@
       } catch { if (bt) bt.textContent = 'error'; }
     })();
     // Theme: detect and apply before rendering
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const isDark = savedTheme ? savedTheme === 'dark' : prefersDark;
-    document.documentElement.classList.toggle('dark', isDark);
     // Settings modal elements
     const settingsBtn = $('#settingsBtn');
     const settingsModal = $('#settingsModal');
     const closeSettingsBtn = $('#closeSettingsBtn');
     const exportBtn = $('#exportBtn');
     const importBtn = $('#importBtn');
-    const darkToggle = $('#darkToggle');
     const addExerciseBtn = $('#addExerciseBtn');
     const showWeeklyNowBtn = document.getElementById('showWeeklyNowBtn');
     const lbName = document.getElementById('lbName');
@@ -1701,9 +1931,39 @@
     const shareWeekBtn = document.getElementById('shareWeekBtn');
     const shareMonthBtn = document.getElementById('shareMonthBtn');
     const toggleDebugBtn = $('#toggleDebugBtn');
+    const soloProgramBtn = $('#soloProgramBtn');
     const debugPanel = $('#debugPanel');
 
-    if (darkToggle) darkToggle.checked = isDark;
+    themeButtons = Array.from(document.querySelectorAll('.theme-option[data-theme-option]'));
+    let storedTheme = null;
+    try { storedTheme = localStorage.getItem(THEME_KEY); } catch {}
+    if (storedTheme && THEMES.includes(storedTheme)) {
+      manualThemeSelection = true;
+    }
+    const initialTheme = manualThemeSelection && storedTheme
+      ? storedTheme
+      : (prefersDarkMedia.matches ? 'dark' : 'light');
+    applyTheme(initialTheme, { persist: manualThemeSelection });
+    themeButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const value = btn.getAttribute('data-theme-option');
+        if (!value || !THEMES.includes(value)) return;
+        manualThemeSelection = true;
+        applyTheme(value, { persist: true });
+      });
+    });
+    prefersDarkMedia.addEventListener('change', (event) => {
+      if (manualThemeSelection) return;
+      applyTheme(event.matches ? 'dark' : 'light', { persist: false });
+    });
+
+    el.questStartBtn?.addEventListener('click', () => {
+      animateQuestProgress();
+    });
+    el.questSettingsBtn?.addEventListener('click', () => {
+      try { openSettingsModal(); } catch {}
+    });
+
     // Initialize language selection (persist for future i18n)
     try { if (langSelect) langSelect.value = getLang(); } catch {}
     // Rollover for each exercise on load
@@ -1792,6 +2052,15 @@
         shareExerciseSel.value = selId;
       }
     }
+
+    window.addEventListener('exercise-deleted', (evt) => {
+      const removedId = evt?.detail?.id;
+      if (!removedId) return;
+      if (currentExerciseId === removedId) currentExerciseId = null;
+      populateExerciseSelect?.();
+      populateShareExerciseSelect?.();
+      populateShareExercise?.();
+    });
 
     // --- Share helpers (period summaries as image) ---
     function periodDates(period){
@@ -2015,6 +2284,71 @@
         }
       });
     }
+
+    soloProgramBtn?.addEventListener('click', () => {
+      const list = loadExercises();
+      if (!list.length) { showToast(t('soloProgramMissing')); return; }
+      const normalize = (value) => (value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+      const usedIndexes = new Set();
+      const findMatch = (variants) => {
+        const needles = variants.map(normalize).filter(Boolean);
+        if (!needles.length) return null;
+        for (let i = 0; i < list.length; i++) {
+          if (usedIndexes.has(i)) continue;
+          const ex = list[i];
+          const name = normalize(ex.exerciseName || '');
+          if (!name) continue;
+          if (needles.some((needle) => name === needle || name.includes(needle) || needle.includes(name))) {
+            return { ex, idx: i };
+          }
+        }
+        return null;
+      };
+      const today = todayStrUTC();
+      const specs = [
+        { names: ['push-ups', 'push ups', 'pushups'], amount: 100, label: 'Push-ups' },
+        { names: ['squats', 'squat', 'squads'], amount: 100, label: 'Squats' },
+        { names: ['twists', 'twist'], amount: 100, label: 'Twists' },
+        { names: ['running', 'run'], amount: 10, label: 'Running' },
+      ];
+      const updated = [];
+      const missing = [];
+      specs.forEach((spec) => {
+        const match = findMatch(spec.names);
+        if (!match) {
+          missing.push(spec.label);
+          return;
+        }
+        usedIndexes.add(match.idx);
+        const ex = match.ex;
+        applyDailyRollover(ex);
+        const value = Math.max(0, Number(spec.amount || 0));
+        if (!value) return;
+        ex.remaining = Math.max(0, Number(ex.remaining || 0) - value);
+        addDone(ex, today, value);
+        pruneHistory(ex);
+        invalidateStreak(ex.id);
+        checkAchievements(ex);
+        if ((ex.remaining || 0) <= 0 && (ex._confettiDoneForToday || '') !== today) {
+          try { ex._confettiDoneForToday = today; } catch {}
+          try { launchConfetti(); } catch {}
+        }
+        updated.push(ex);
+      });
+      if (!updated.length) { showToast(t('soloProgramMissing')); return; }
+      saveDebounced(() => saveExercises(list));
+      updated.forEach((ex) => {
+        updateExerciseCardView(ex);
+        const card = document.querySelector(`.ex-card[data-id="${ex.id}"]`);
+        if (card) updateWeeklyBar(card, ex);
+      });
+      try {
+        const cfg = getLbConfig();
+        if (cfg.name && cfg.url && cfg.key) upsertScore(cfg.name, computeWeeklyTotalAll());
+      } catch {}
+      const message = missing.length ? t('soloProgramPartial', { missing: missing.join(', ') }) : t('soloProgramApplied');
+      showToast(message);
+    });
 
     // Force update: unregister SWs, clear caches, bust URL and reload
     forceReloadBtn?.addEventListener('click', async () => {
@@ -2612,9 +2946,11 @@
     }
     const ring = card.querySelector('.ring');
     if (ring) {
-      ring.style.setProperty('--pct', String(pct * 100));
-      const newPct = (pct * 100).toFixed(2);
-      ring.style.background = `conic-gradient(var(--accent) ${newPct}%, var(--track) 0)`;
+      try { ring.style.setProperty('--pct', String(pct * 100)); }
+      catch {
+        const fallbackPct = (pct * 100).toFixed(2);
+        ring.style.background = `conic-gradient(var(--accent) ${fallbackPct}%, var(--track) 0)`;
+      }
     }
     // update chip colors
     {

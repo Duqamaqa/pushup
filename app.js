@@ -1976,6 +1976,7 @@
     const shareMonthBtn = document.getElementById('shareMonthBtn');
     const toggleDebugBtn = $('#toggleDebugBtn');
     const soloProgramBtn = $('#soloProgramBtn');
+    const questSoloBtn = $('#questSoloBtn');
     const debugPanel = $('#debugPanel');
 
     themeButtons = Array.from(document.querySelectorAll('.theme-option[data-theme-option]'));
@@ -2345,7 +2346,7 @@
       });
     }
 
-    soloProgramBtn?.addEventListener('click', () => {
+    const handleSoloProgram = () => {
       const list = loadExercises() || [];
       const normalize = (value) => (value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
       const usedIndexes = new Set();
@@ -2429,7 +2430,10 @@
         ? `${t('soloProgramApplied')} ${created.length ? t('soloProgramCreated', { list: created.join(', ') }) : ''}`.trim()
         : t('soloProgramApplied');
       showToast(message);
-    });
+    };
+
+    soloProgramBtn?.addEventListener('click', handleSoloProgram);
+    questSoloBtn?.addEventListener('click', handleSoloProgram);
 
     // Force update: unregister SWs, clear caches, bust URL and reload
     forceReloadBtn?.addEventListener('click', async () => {

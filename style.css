@@ -1068,6 +1068,189 @@ body.theme-quest.quest-overlay-active .container {
   outline-offset: 4px;
 }
 
+/* Quest theme minimalist dashboard */
+body.theme-quest .container {
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  padding-inline: clamp(18px, 6vw, 36px);
+  padding-top: clamp(28px, 8vw, 60px);
+}
+
+body.theme-quest .header-row {
+  justify-content: center;
+  gap: clamp(12px, 4vw, 20px);
+  margin-bottom: clamp(22px, 6vh, 38px);
+}
+
+body.theme-quest .header-row h1 {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: clamp(1.2rem, 2.8vw, 1.8rem);
+}
+
+/* Hidden by default, shown in quest theme */
+#questSoloBtn {
+  display: none;
+}
+
+body.theme-quest .quest-solo-btn,
+body.theme-quest #questSoloBtn {
+  display: inline-flex;
+}
+
+body.theme-quest .quest-solo-btn {
+  align-self: center;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 999px;
+  padding: 12px 22px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: inherit;
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+body.theme-quest .quest-solo-btn:hover,
+body.theme-quest .quest-solo-btn:focus-visible {
+  background: rgba(56, 189, 248, 0.24);
+  border-color: rgba(56, 189, 248, 0.45);
+  transform: translateY(-1px);
+}
+
+body.theme-quest #settingsBtn {
+  background: rgba(15, 118, 189, 0.16);
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: inherit;
+  padding: 8px;
+  transition: background 200ms ease, border-color 200ms ease;
+}
+
+body.theme-quest #settingsBtn:hover,
+body.theme-quest #settingsBtn:focus-visible {
+  background: rgba(56, 189, 248, 0.22);
+  border-color: rgba(56, 189, 248, 0.45);
+}
+
+body.theme-quest .exercise-list {
+  gap: clamp(14px, 5vw, 22px);
+  padding-bottom: 0;
+}
+
+body.theme-quest .ex-card {
+  position: relative;
+  background: rgba(8, 29, 54, 0.32);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 18px;
+  padding: clamp(16px, 5vw, 26px);
+  box-shadow: none;
+  backdrop-filter: blur(18px);
+  display: grid;
+  gap: clamp(12px, 4vw, 18px);
+}
+
+body.theme-quest .ex-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  border: 1px solid rgba(56, 189, 248, 0.12);
+}
+
+body.theme-quest .ex-header {
+  position: relative;
+  align-items: baseline;
+}
+
+body.theme-quest .ex-title {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: clamp(1.05rem, 2.4vw, 1.4rem);
+}
+
+body.theme-quest .ex-actions .icon-btn {
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(15, 118, 189, 0.16);
+  transition: background 160ms ease;
+}
+
+body.theme-quest .ex-actions .icon-btn:hover,
+body.theme-quest .ex-actions .icon-btn:focus-visible {
+  background: rgba(56, 189, 248, 0.24);
+}
+
+body.theme-quest .ex-progress {
+  align-items: center;
+  justify-items: start;
+  gap: 6px;
+}
+
+body.theme-quest .ring {
+  --size: clamp(72px, 22vw, 98px);
+  border-radius: 18px;
+  border: 1px solid rgba(56, 189, 248, 0.32);
+  background: rgba(2, 8, 23, 0.35);
+  padding: clamp(10px, 4vw, 14px);
+}
+
+body.theme-quest .ring-hole {
+  width: auto;
+  height: auto;
+  background: transparent;
+  box-shadow: none;
+}
+
+body.theme-quest .ex-remaining {
+  font-size: clamp(26px, 7vw, 40px);
+  font-weight: 700;
+  color: var(--accent);
+}
+
+body.theme-quest .done-msg {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 12px;
+  color: rgba(125, 211, 252, 0.85);
+}
+
+body.theme-quest .ex-tip,
+body.theme-quest .ex-badges,
+body.theme-quest .ex-stats,
+body.theme-quest .ex-sparkline,
+body.theme-quest .week-progress,
+body.theme-quest .ex-extra {
+  display: none;
+}
+
+body.theme-quest .ex-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+body.theme-quest .ex-buttons .btn {
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: inherit;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+body.theme-quest .ex-buttons .btn:hover,
+body.theme-quest .ex-buttons .btn:focus-visible {
+  background: rgba(56, 189, 248, 0.24);
+  border-color: rgba(56, 189, 248, 0.45);
+}
+
 @media (max-width: 720px) {
   .quest-panel {
     --quest-pad: clamp(24px, 8vw, 36px);

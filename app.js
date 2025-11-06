@@ -767,6 +767,22 @@
     questStartBtn: document.getElementById('questStartBtn'),
     questSettingsBtn: document.getElementById('questSettingsBtn'),
   };
+  if (el.list) {
+    el.list.addEventListener('click', (event) => {
+      const btn = event.target.closest('.quest-ex-plus');
+      if (!btn || !el.list.contains(btn)) return;
+      if (!isQuestTheme()) return;
+      event.preventDefault();
+      const id = btn.getAttribute('data-id');
+      if (!id) return;
+      questIncrement(id);
+    });
+    el.list.addEventListener('dblclick', (event) => {
+      if (event.target.closest('.quest-ex-plus') && isQuestTheme()) {
+        event.preventDefault();
+      }
+    });
+  }
   // Weekly Summary modal elements
   const weeklyModal = document.getElementById('weeklyModal');
   const closeWeekly = document.getElementById('closeWeekly');
@@ -1235,7 +1251,6 @@
       button.setAttribute('aria-label', `${t('add')} 1 ${unit}`);
       button.title = `+1 ${unit}`;
       button.innerHTML = '<span aria-hidden="true">+</span>';
-      button.addEventListener('click', () => questIncrement(ex.id));
 
       row.append(label, status, button);
       frag.appendChild(row);
@@ -1800,11 +1815,13 @@
     const idx = items.findIndex(i => i.id === ex.id);
     if (idx >= 0) {
       items[idx] = Object.assign({}, items[idx], ex);
-      if (typeof saveDebounced === 'function') saveDebounced(() => saveExercises(items));
-      else saveExercises(items);
       if (isQuestTheme()) {
+        saveExercises(items);
         updateQuestGoalCounts(items);
         renderQuestList(items);
+      } else {
+        if (typeof saveDebounced === 'function') saveDebounced(() => saveExercises(items));
+        else saveExercises(items);
       }
     }
   }
@@ -2074,7 +2091,6 @@
     const shareMonthBtn = document.getElementById('shareMonthBtn');
     const toggleDebugBtn = $('#toggleDebugBtn');
     const soloProgramBtn = $('#soloProgramBtn');
-    const questSoloBtn = $('#questSoloBtn');
     const debugPanel = $('#debugPanel');
 
     themeButtons = Array.from(document.querySelectorAll('.theme-option[data-theme-option]'));
@@ -2109,15 +2125,12 @@
 
     el.questStartBtn?.addEventListener('click', () => {
       animateQuestProgress();
-      if (questOverlayVisible) {
-        if (questOverlayHideTimer) {
-          clearTimeout(questOverlayHideTimer);
-        }
-        questOverlayHideTimer = setTimeout(() => {
-          toggleQuestOverlay(false);
-          questOverlayHideTimer = null;
-        }, 2600);
+      if (!questOverlayVisible) return;
+      if (questOverlayHideTimer) {
+        clearTimeout(questOverlayHideTimer);
+        questOverlayHideTimer = null;
       }
+      toggleQuestOverlay(false);
     });
     el.questSettingsBtn?.addEventListener('click', () => {
       try { openSettingsModal(); } catch {}
@@ -2531,7 +2544,6 @@
     };
 
     soloProgramBtn?.addEventListener('click', handleSoloProgram);
-    questSoloBtn?.addEventListener('click', handleSoloProgram);
 
     // Force update: unregister SWs, clear caches, bust URL and reload
     forceReloadBtn?.addEventListener('click', async () => {

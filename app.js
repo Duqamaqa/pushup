@@ -1118,11 +1118,15 @@
     overlay.setAttribute('aria-hidden', questOverlayVisible ? 'false' : 'true');
     if (questOverlayVisible) {
       overlay.removeAttribute('hidden');
+      overlay.classList.remove('hidden');
       requestAnimationFrame(() => overlay.classList.add('is-active'));
     } else {
       overlay.classList.remove('is-active');
       setTimeout(() => {
-        if (!overlay.classList.contains('is-active')) overlay.setAttribute('hidden', '');
+        if (!overlay.classList.contains('is-active')) {
+          overlay.setAttribute('hidden', '');
+          overlay.classList.add('hidden');
+        }
       }, 520);
     }
   }

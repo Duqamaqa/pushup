@@ -780,6 +780,8 @@
   let manualThemeSelection = false;
   let themeButtons = [];
   let questTaskRows = [];
+  let questOverlayVisible = false;
+  let questOverlayHideTimer = null;
 
   async function renderHistoryChart(mode, ex) {
     if (window.__historyChart) {
@@ -1105,9 +1107,16 @@
 
   function toggleQuestOverlay(active) {
     const overlay = el.questOverlay;
-    if (!overlay) return;
-    overlay.setAttribute('aria-hidden', active ? 'false' : 'true');
-    if (active) {
+    const body = document.body;
+    if (!overlay || !body) return;
+    if (questOverlayHideTimer) {
+      clearTimeout(questOverlayHideTimer);
+      questOverlayHideTimer = null;
+    }
+    questOverlayVisible = !!active;
+    body.classList.toggle('quest-overlay-active', questOverlayVisible);
+    overlay.setAttribute('aria-hidden', questOverlayVisible ? 'false' : 'true');
+    if (questOverlayVisible) {
       overlay.removeAttribute('hidden');
       requestAnimationFrame(() => overlay.classList.add('is-active'));
     } else {
@@ -1126,7 +1135,7 @@
     const items = Array.isArray(list) ? list : [];
     if (!items.length) {
       el.questEmpty?.removeAttribute('hidden');
-      toggleQuestOverlay(true);
+      if (questOverlayVisible) resetQuestProgress();
       return;
     }
     el.questEmpty?.setAttribute('hidden', '');
@@ -1154,8 +1163,7 @@
       questTaskRows.push({ row, fill, label: labelEl, target, name: ex.exerciseName || t('fallbackExercise') });
     });
     tasksRoot.appendChild(frag);
-    toggleQuestOverlay(true);
-    resetQuestProgress();
+    if (questOverlayVisible) resetQuestProgress();
   }
 
   function resetQuestProgress() {
@@ -1995,6 +2003,15 @@
 
     el.questStartBtn?.addEventListener('click', () => {
       animateQuestProgress();
+      if (questOverlayVisible) {
+        if (questOverlayHideTimer) {
+          clearTimeout(questOverlayHideTimer);
+        }
+        questOverlayHideTimer = setTimeout(() => {
+          toggleQuestOverlay(false);
+          questOverlayHideTimer = null;
+        }, 2600);
+      }
     });
     el.questSettingsBtn?.addEventListener('click', () => {
       try { openSettingsModal(); } catch {}

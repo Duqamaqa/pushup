@@ -840,6 +840,8 @@ body.no-scroll { overflow: hidden; }
 body.theme-quest {
   background: var(--bg);
   color: var(--fg);
+}
+body.theme-quest.quest-overlay-active {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -847,7 +849,7 @@ body.theme-quest {
   padding: clamp(20px, 5vw, 48px);
   overflow: hidden;
 }
-body.theme-quest .container {
+body.theme-quest.quest-overlay-active .container {
   display: none;
 }
 

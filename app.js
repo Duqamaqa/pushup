@@ -762,7 +762,7 @@
     historyChart: document.getElementById('historyChart'),
     closeHistory: document.getElementById('closeHistory'),
     questOverlay: document.getElementById('questOverlay'),
-    questTasks: document.getElementById('questTasks'),
+    questGoals: document.getElementById('questGoals'),
     questEmpty: document.getElementById('questEmpty'),
     questStartBtn: document.getElementById('questStartBtn'),
     questSettingsBtn: document.getElementById('questSettingsBtn'),
@@ -779,7 +779,7 @@
   const leaderboardList = document.getElementById('leaderboardList');
   let manualThemeSelection = false;
   let themeButtons = [];
-  let questTaskRows = [];
+  let questGoalRows = [];
   let questOverlayVisible = false;
   let questOverlayHideTimer = null;
 
@@ -1119,6 +1119,7 @@
     if (questOverlayVisible) {
       overlay.removeAttribute('hidden');
       overlay.classList.remove('hidden');
+      updateQuestGoalCounts(loadExercises() || []);
       requestAnimationFrame(() => overlay.classList.add('is-active'));
     } else {
       overlay.classList.remove('is-active');
@@ -1132,80 +1133,60 @@
   }
 
   function renderQuestOverlay(list) {
-    const tasksRoot = el.questTasks;
-    if (!tasksRoot) return;
-    questTaskRows = [];
-    tasksRoot.innerHTML = '';
+    const goalsRoot = el.questGoals;
+    if (!goalsRoot) return;
+    questGoalRows = [];
+    goalsRoot.innerHTML = '';
     const items = Array.isArray(list) ? list : [];
     if (!items.length) {
       el.questEmpty?.removeAttribute('hidden');
-      if (questOverlayVisible) resetQuestProgress();
       return;
     }
     el.questEmpty?.setAttribute('hidden', '');
     const frag = document.createDocumentFragment();
     items.forEach((ex) => {
-      const row = document.createElement('div');
-      row.className = 'quest-task';
-      const icon = document.createElement('div');
-      icon.className = 'quest-task-icon';
-      const nameEl = document.createElement('div');
-      nameEl.className = 'quest-task-name';
-      nameEl.textContent = ex.exerciseName || t('fallbackExercise');
-      const labelEl = document.createElement('div');
-      labelEl.className = 'quest-progress-label';
-      const targetRaw = Number(ex.dailyTarget || ex.weeklyGoal || ex.remaining || 100);
-      const target = Math.max(1, targetRaw || 100);
-      labelEl.textContent = `${n(0)} / ${n(target)}`;
-      const progress = document.createElement('div');
-      progress.className = 'quest-progress';
-      const fill = document.createElement('div');
-      fill.className = 'quest-progress-fill';
-      progress.appendChild(fill);
-      row.append(icon, nameEl, labelEl, progress);
-      frag.appendChild(row);
-      questTaskRows.push({ row, fill, label: labelEl, target, name: ex.exerciseName || t('fallbackExercise') });
+      const li = document.createElement('li');
+      li.className = 'quest-goal-item';
+      const nameEl = document.createElement('span');
+      nameEl.className = 'quest-goal-name';
+      nameEl.textContent = (ex.exerciseName || t('fallbackExercise')).toUpperCase();
+      const countEl = document.createElement('span');
+      countEl.className = 'quest-goal-count';
+      li.append(nameEl, countEl);
+      frag.appendChild(li);
+      questGoalRows.push({ id: ex.id, item: li, nameEl, countEl });
     });
-    tasksRoot.appendChild(frag);
-    if (questOverlayVisible) resetQuestProgress();
+    goalsRoot.appendChild(frag);
+    updateQuestGoalCounts(items);
   }
 
-  function resetQuestProgress() {
-    questTaskRows.forEach((item) => {
-      const { fill, label, target } = item;
-      if (!fill || !label) return;
-      fill.style.transition = 'none';
-      fill.style.width = '0%';
-      void fill.offsetWidth;
-      fill.style.transition = '';
-      label.textContent = `${n(0)} / ${n(target)}`;
+  function updateQuestGoalCounts(sourceList) {
+    if (!questGoalRows.length) return;
+    const list = Array.isArray(sourceList) ? sourceList : (loadExercises?.() || []);
+    const today = todayStrUTC();
+    questGoalRows.forEach((row) => {
+      const ex = list.find((item) => item.id === row.id);
+      if (!ex) return;
+      const entry = ex.history?.[today] || {};
+      const done = Math.max(0, Number(entry.done || 0));
+      const planned = Math.max(0, Number(entry.planned || 0));
+      const target = Math.max(1, planned || Number(ex.dailyTarget || 0) || 1);
+      if (row.nameEl) {
+        const label = (ex.exerciseName || t('fallbackExercise')).toUpperCase();
+        if (row.nameEl.textContent !== label) row.nameEl.textContent = label;
+      }
+      if (row.countEl) row.countEl.textContent = `[${n(done)} / ${n(target)}]`;
     });
   }
 
   function animateQuestProgress() {
-    if (!questTaskRows.length) return;
-    resetQuestProgress();
-    const runs = questTaskRows.map((item) => {
-      const percent = Math.floor(30 + Math.random() * 51);
-      const finalValue = Math.max(1, Math.round(item.target * (percent / 100)));
-      return { ...item, percent, finalValue };
-    });
-    requestAnimationFrame(() => {
-      runs.forEach((item) => {
-        if (item.fill) item.fill.style.width = `${item.percent}%`;
-      });
-      const start = performance.now();
-      const duration = 2400;
-      function step(now) {
-        const factor = Math.min((now - start) / duration, 1);
-        runs.forEach((item) => {
-          if (!item.label) return;
-          const value = Math.round(item.finalValue * factor);
-          item.label.textContent = `${n(value)} / ${n(item.target)}`;
-        });
-        if (factor < 1) requestAnimationFrame(step);
-      }
-      requestAnimationFrame(step);
+    if (!questGoalRows.length) return;
+    updateQuestGoalCounts(loadExercises() || []);
+    questGoalRows.forEach(({ item }) => {
+      if (!item) return;
+      item.classList.remove('pulse');
+      void item.offsetWidth;
+      item.classList.add('pulse');
     });
   }
 
@@ -1562,19 +1543,40 @@
   }
 
   function getQuickStepsFor(ex) {
-    // Parse and sanitize quick steps; fallback to default set
-    const uniq = (arr) => Array.from(new Set(arr));
+    // Parse and sanitize quick steps; prefer user-provided values, then sensible defaults ≤ target
+    const sanitize = (arr) => arr
+      .map(Number)
+      .filter((n) => Number.isFinite(n) && n >= 1 && n <= 999);
     const defaults = [5, 10, 15, 20];
-    let steps = [];
-    if (Array.isArray(ex.quickSteps) && ex.quickSteps.length) {
-      steps = ex.quickSteps.map(Number).filter((n) => Number.isFinite(n) && n >= 1 && n <= 999);
-      // If fewer than 4 provided, top up with defaults to reach four buttons
-      if (steps.length < 4) steps = steps.concat(defaults);
-    } else {
-      steps = defaults.slice();
+    const daily = Math.max(0, Number(ex.dailyTarget || 0));
+    const cap = daily > 0 ? daily : Infinity;
+
+    let steps = Array.isArray(ex.quickSteps) ? sanitize(ex.quickSteps) : [];
+    steps.sort((a, b) => a - b);
+    if (steps.length >= 4) {
+      return steps.slice(0, 4);
     }
-    steps = uniq(steps).sort((a, b) => a - b).slice(0, 4);
-    return steps;
+
+    // Top up with defaults that do not exceed the daily target (if defined)
+    defaults.forEach((n) => {
+      if (steps.length >= 4) return;
+      if (n > cap) return;
+      if (!steps.includes(n)) steps.push(n);
+    });
+
+    // If still empty (e.g., no quick steps and small target), derive simple fallbacks
+    if (steps.length === 0) {
+      const fallback = daily > 0
+        ? [Math.max(1, Math.round(daily / 2)), daily]
+        : defaults;
+      sanitize(fallback).forEach((n) => {
+        if (steps.length >= 4) return;
+        if (n > cap) return;
+        if (!steps.includes(n)) steps.push(n);
+      });
+    }
+
+    return steps.sort((a, b) => a - b).slice(0, 4);
   }
 
   // --- Sparkline ---
@@ -1705,6 +1707,7 @@
       items[idx] = Object.assign({}, items[idx], ex);
       if (typeof saveDebounced === 'function') saveDebounced(() => saveExercises(items));
       else saveExercises(items);
+      if (isQuestTheme()) updateQuestGoalCounts(items);
     }
   }
 
@@ -2378,7 +2381,7 @@
             unit: spec.unit || 'reps',
             dailyTarget: spec.amount,
             weeklyGoal: spec.unit === 'km' ? Math.round(spec.amount * 5) : spec.amount * 7,
-            remaining: 0,
+            remaining: spec.amount,
             lastAppliedDate: today,
             quickSteps: [Math.max(1, Math.round(spec.amount / 2)), spec.amount].filter((v, i, arr) => arr.indexOf(v) === i),
             history: {},
@@ -2386,7 +2389,7 @@
           };
           const entry = ensureHistory(newEx, today);
           entry.planned = spec.amount;
-          entry.done = spec.amount;
+          entry.done = 0;
           list.push(newEx);
           ensureBadges(newEx);
           checkAchievements(newEx);
@@ -2412,6 +2415,7 @@
       });
       if (!updated.length) { showToast(t('soloProgramMissing')); return; }
       saveExercises(list);
+      if (isQuestTheme()) renderQuestOverlay(list);
       updated.forEach((ex) => {
         updateExerciseCardView(ex);
         const card = document.querySelector(`.ex-card[data-id="${ex.id}"]`);

@@ -1111,6 +1111,7 @@ body.theme-quest .quest-solo-btn {
   font-weight: 600;
   color: inherit;
   transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+  margin: clamp(6px, 3vw, 12px) 0 clamp(18px, 5vw, 28px);
 }
 
 body.theme-quest .quest-solo-btn:hover,
@@ -1136,119 +1137,86 @@ body.theme-quest #settingsBtn:focus-visible {
 }
 
 body.theme-quest .exercise-list {
-  gap: clamp(14px, 5vw, 22px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   padding-bottom: 0;
+  overflow: visible;
+  flex: 0 0 auto;
+  max-height: none;
+}
+
+body.theme-quest .quest-exercise-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+body.theme-quest .quest-ex-row {
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 3vw, 18px);
+  background: rgba(4, 19, 36, 0.64);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 14px;
+  padding: 10px clamp(14px, 5vw, 20px);
+  min-height: 44px;
+  color: inherit;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+body.theme-quest .quest-ex-row:hover {
+  background: rgba(12, 42, 70, 0.72);
+  border-color: rgba(56, 189, 248, 0.42);
+}
+
+body.theme-quest .quest-ex-label {
+  flex: 1 1 auto;
+  font-weight: 600;
+  opacity: 0.9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.theme-quest .quest-ex-status {
+  font-family: 'SFMono-Regular', Menlo, ui-monospace, monospace;
+  font-size: 0.9rem;
+  color: rgba(148, 197, 255, 0.92);
+}
+
+body.theme-quest .quest-ex-plus {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.16);
+  color: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+body.theme-quest .quest-ex-plus:hover,
+body.theme-quest .quest-ex-plus:focus-visible {
+  background: rgba(56, 189, 248, 0.28);
+  border-color: rgba(56, 189, 248, 0.5);
+  transform: translateY(-1px);
+}
+
+body.theme-quest .quest-list-empty {
+  text-align: center;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 24px 0;
+  opacity: 0.7;
 }
 
 body.theme-quest .ex-card {
-  position: relative;
-  background: rgba(8, 29, 54, 0.32);
-  border: 1px solid rgba(56, 189, 248, 0.28);
-  border-radius: 18px;
-  padding: clamp(16px, 5vw, 26px);
-  box-shadow: none;
-  backdrop-filter: blur(18px);
-  display: grid;
-  gap: clamp(12px, 4vw, 18px);
-}
-
-body.theme-quest .ex-card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  border: 1px solid rgba(56, 189, 248, 0.12);
-}
-
-body.theme-quest .ex-header {
-  position: relative;
-  align-items: baseline;
-}
-
-body.theme-quest .ex-title {
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: clamp(1.05rem, 2.4vw, 1.4rem);
-}
-
-body.theme-quest .ex-actions .icon-btn {
-  padding: 6px;
-  border-radius: 999px;
-  background: rgba(15, 118, 189, 0.16);
-  transition: background 160ms ease;
-}
-
-body.theme-quest .ex-actions .icon-btn:hover,
-body.theme-quest .ex-actions .icon-btn:focus-visible {
-  background: rgba(56, 189, 248, 0.24);
-}
-
-body.theme-quest .ex-progress {
-  align-items: center;
-  justify-items: start;
-  gap: 6px;
-}
-
-body.theme-quest .ring {
-  --size: clamp(72px, 22vw, 98px);
-  border-radius: 18px;
-  border: 1px solid rgba(56, 189, 248, 0.32);
-  background: rgba(2, 8, 23, 0.35);
-  padding: clamp(10px, 4vw, 14px);
-}
-
-body.theme-quest .ring-hole {
-  width: auto;
-  height: auto;
-  background: transparent;
-  box-shadow: none;
-}
-
-body.theme-quest .ex-remaining {
-  font-size: clamp(26px, 7vw, 40px);
-  font-weight: 700;
-  color: var(--accent);
-}
-
-body.theme-quest .done-msg {
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  font-size: 12px;
-  color: rgba(125, 211, 252, 0.85);
-}
-
-body.theme-quest .ex-tip,
-body.theme-quest .ex-badges,
-body.theme-quest .ex-stats,
-body.theme-quest .ex-sparkline,
-body.theme-quest .week-progress,
-body.theme-quest .ex-extra {
   display: none;
-}
-
-body.theme-quest .ex-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-body.theme-quest .ex-buttons .btn {
-  background: rgba(56, 189, 248, 0.12);
-  border: 1px solid rgba(56, 189, 248, 0.28);
-  border-radius: 999px;
-  padding: 8px 16px;
-  font-size: 0.85rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: inherit;
-  transition: background 160ms ease, border-color 160ms ease;
-}
-
-body.theme-quest .ex-buttons .btn:hover,
-body.theme-quest .ex-buttons .btn:focus-visible {
-  background: rgba(56, 189, 248, 0.24);
-  border-color: rgba(56, 189, 248, 0.45);
 }
 
 @media (max-width: 720px) {

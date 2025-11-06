@@ -1190,6 +1190,94 @@
     });
   }
 
+  function renderQuestList(sourceList, target) {
+    if (!isQuestTheme()) return;
+    const container = target || el.list || document.getElementById('exerciseListContainer');
+    if (!container) return;
+    const items = Array.isArray(sourceList) ? sourceList : [];
+    container.classList.add('quest-exercise-list');
+    container.innerHTML = '';
+    container.setAttribute('role', 'list');
+
+    if (!items.length) {
+      const empty = document.createElement('div');
+      empty.className = 'quest-list-empty';
+      setText(empty, t('questNoTasks'));
+      container.appendChild(empty);
+      return;
+    }
+
+    const today = todayStrUTC();
+    const frag = document.createDocumentFragment();
+    items.forEach((ex) => {
+      const row = document.createElement('div');
+      row.className = 'quest-ex-row';
+      row.dataset.id = ex.id;
+      row.setAttribute('role', 'listitem');
+
+      const label = document.createElement('span');
+      label.className = 'quest-ex-label';
+      const name = (ex.exerciseName || t('fallbackExercise')).trim();
+      label.textContent = `-${name.toLowerCase()}`;
+
+      const status = document.createElement('span');
+      status.className = 'quest-ex-status';
+      const entry = ex.history?.[today] || {};
+      const done = Math.max(0, Number(entry.done || 0));
+      const planned = Math.max(1, Number(entry.planned || 0) || Number(ex.dailyTarget || 0) || 1);
+      status.textContent = `[${n(done)}/${n(planned)}]`;
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'quest-ex-plus';
+      button.dataset.id = ex.id;
+      const unit = ex.unit || 'reps';
+      button.setAttribute('aria-label', `${t('add')} 1 ${unit}`);
+      button.title = `+1 ${unit}`;
+      button.innerHTML = '<span aria-hidden="true">+</span>';
+      button.addEventListener('click', () => questIncrement(ex.id));
+
+      row.append(label, status, button);
+      frag.appendChild(row);
+    });
+
+    container.appendChild(frag);
+  }
+
+  function questIncrement(exId) {
+    if (!exId) return;
+    const list = loadExercises() || [];
+    const ex = list.find((item) => item.id === exId);
+    if (!ex) return;
+    applyDailyRollover(ex);
+    const today = todayStrUTC();
+    const increment = 1;
+    const entry = ensureHistory(ex, today);
+    entry.planned = Math.max(Number(entry.planned || 0), Number(ex.dailyTarget || 0), increment);
+    const beforeRemaining = Number(ex.remaining || entry.planned || ex.dailyTarget || increment);
+    ex.remaining = Math.max(0, beforeRemaining - increment);
+    addDone(ex, today, increment);
+    pruneHistory(ex);
+    invalidateStreak(ex.id);
+    checkAchievements(ex);
+    let celebrate = false;
+    if ((ex.remaining || 0) <= 0 && (ex._confettiDoneForToday || '') !== today) {
+      try { ex._confettiDoneForToday = today; } catch {}
+      celebrate = true;
+    }
+    persistExercise(ex);
+    if (celebrate) {
+      try { launchConfetti(); } catch {}
+    }
+    try {
+      const cfg = getLbConfig();
+      if (cfg.name && cfg.url && cfg.key) upsertScore(cfg.name, computeWeeklyTotalAll());
+    } catch {}
+    if (!isQuestTheme()) {
+      updateExerciseCardView(ex);
+    }
+  }
+
   function onThemeApplied(mode, listNow) {
     if (window.__historyChart) {
       const cs = getComputedStyle(document.documentElement);
@@ -1258,10 +1346,17 @@
     const dash = el.list || document.getElementById('exerciseListContainer');
     if (!dash) return;
     dash.innerHTML = '';
+    const questMode = isQuestTheme();
+    dash.classList.toggle('quest-exercise-list', questMode);
 
-    if (isQuestTheme()) {
+    if (questMode) {
       renderQuestOverlay(list);
+      renderQuestList(list, dash);
+      return;
     }
+
+    dash.classList.remove('quest-exercise-list');
+    dash.removeAttribute('role');
 
     // First-time onboarding view
     if (list.length === 0) {
@@ -1707,7 +1802,10 @@
       items[idx] = Object.assign({}, items[idx], ex);
       if (typeof saveDebounced === 'function') saveDebounced(() => saveExercises(items));
       else saveExercises(items);
-      if (isQuestTheme()) updateQuestGoalCounts(items);
+      if (isQuestTheme()) {
+        updateQuestGoalCounts(items);
+        renderQuestList(items);
+      }
     }
   }
 

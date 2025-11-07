@@ -1,30 +1,19 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `index.html` hosts the application shell (toolbar, modals, includes).
-- `style.css` centralizes theme variables, layout rules, and component classes (kebab-case naming).
-- `app.js` runs core logic inside an IIFE: state management, history, quick actions, charts, and UI wiring. Call `applyDailyRollover()` before any state mutation.
-- `sw.js` caches offline assets. Bump `CACHE_NAME` and keep `ASSETS` synchronized whenever cacheable files change.
-- `manifest.json` defines PWA metadata; adjust `start_url` and `scope` for subpath deployments.
+The single-page client lives in `index.html`, which wires toolbar controls, modals, and includes. Core logic sits in `app.js` within an IIFE; always call `applyDailyRollover()` before mutating state or history arrays. Styling, layout primitives, and shared variables belong in `style.css`, keeping classes in kebab-case. `sw.js` caches offline assets—bump `CACHE_NAME` and update `ASSETS` whenever HTML, CSS, JS, or icons change. Progressive Web App metadata is defined in `manifest.json`, while `version.json` and `commit.js` provide lightweight release metadata.
 
 ## Build, Test, and Development Commands
-- `python3 -m http.server 5173` (or `npx http-server -p 5173 .`) serves the app locally with service worker support. Open `http://localhost:5173/` after starting.
-- Hard-reload the browser after asset changes to confirm cache updates.
+Run `python3 -m http.server 5173` (or `npx http-server -p 5173 .`) from the repo root for a local preview with service worker support, then open `http://localhost:5173/`. After editing cached files, perform a hard reload (Shift+Reload) to verify the new cache. There is no automated build step; keep patches minimal and browser-ready.
 
 ## Coding Style & Naming Conventions
-- JavaScript: vanilla ES, 2-space indent, semicolons, camelCase identifiers. Keep patches focused and minimal.
-- CSS: leverage existing CSS variables; class names stay kebab-case.
-- HTML: ids in camelCase, ensure accessibility via `aria-*` attributes and proper `hidden` usage.
+Use vanilla ES with 2-space indentation, semicolons, and camelCase identifiers (`dailyTotals`, `openHistoryModal`). Guard shared mutations with concise helper functions and inline comments only when logic is non-obvious. CSS sticks to existing custom properties and kebab-case class selectors (`history-modal`, `quick-step`). HTML ids stay camelCase and must include `aria-*` attributes or `hidden` flags when toggling visibility.
 
 ## Testing Guidelines
-- Exercise manual checks: URL quick actions (`?dec=10`, `?add=2&exercise=Pushups`), quick-step presets, custom inputs (positive integers only), and daily rollover correctness.
-- Verify history modal stats (7/30-day), chart theme colors, and JSON export/import round-trips with invalid input handling.
-- Confirm PWA offline behavior after first load and after updating cached assets.
+Manual verification is required: check URL quick actions such as `?dec=10` or `?add=2&exercise=Pushups`, confirm quick-step presets, and reject non-positive integers in custom inputs. Validate daily rollovers, 7/30-day history stats, chart colors, and JSON export/import flows (including malformed JSON). After any cache-affecting change, confirm offline behavior by revisiting the app in airplane mode.
 
 ## Commit & Pull Request Guidelines
-- Write imperative commit messages (e.g., "Add history modal chart") and avoid bundling unrelated changes.
-- PRs should describe the change, list manual tests, mention edge cases, and include relevant screenshots or clips.
+Write imperative, single-purpose commit messages (e.g., "Add history modal chart") and avoid bundling unrelated fixes. Pull requests should describe the change, outline manual test steps, call out edge cases, and include screenshots or clips for UI adjustments. Reference related issues when available and ensure `sw.js` updates accompany asset changes.
 
 ## Security & Configuration Tips
-- Persisted state lives in `localStorage` under `exerciseList`; never store secrets.
-- Ensure offline-critical assets are listed in `sw.js` `ASSETS` array before release.
+Persisted data is limited to `localStorage` under the `exerciseList` key—store no credentials or secrets. Keep the offline experience reliable by ensuring every critical asset is listed in `sw.js` and that `manifest.json` `start_url`/`scope` reflect the correct deployment subpath.

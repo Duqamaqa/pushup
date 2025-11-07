@@ -539,7 +539,7 @@
       const y = d.getUTCFullYear();
       const m = String(d.getUTCMonth() + 1).padStart(2, '0');
       const day = String(d.getUTCDate()).padStart(2, '0');
-      out.unshift(`${y}-${m}-${day}`);
+      out.push(`${y}-${m}-${day}`);
       d.setUTCDate(d.getUTCDate() - 1);
     }
     return out;

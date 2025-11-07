@@ -868,6 +868,7 @@ body.theme-quest.quest-overlay-active .container {
   pointer-events: none;
   transition: opacity 420ms ease;
   z-index: 1300;
+  overflow-y: auto;
 }
 .quest-overlay.is-active {
   opacity: 1;
@@ -1372,3 +1373,21 @@ button { font-size: 18px; }
 .wp-label { font-size: 14px; }
 .about { font-size: 14px; }
 .about-name { font-size: 15px; }
+@media (max-width: 720px) {
+  .quest-overlay {
+    align-items: flex-start;
+    padding: 16px 10px 24px;
+  }
+  .quest-panel {
+    width: 100%;
+    max-width: 100%;
+    min-height: auto;
+    border-radius: 24px;
+    gap: 16px;
+  }
+}
+@media (max-width: 720px) {
+  .quest-history-list {
+    max-height: 150px;
+  }
+}

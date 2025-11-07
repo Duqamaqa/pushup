@@ -1483,13 +1483,19 @@
       `;
       dash.appendChild(empty);
 
-      document.getElementById('addFirstExerciseBtn')?.addEventListener('click', () => {
-        try { openAddEditModal(); } catch {}
-      });
+      const addBtn = document.getElementById('addFirstExerciseBtn');
+      if (addBtn) {
+        addBtn.addEventListener('click', () => {
+          try { openAddEditModal(); } catch {}
+        });
+      }
 
-      document.getElementById('addSoloProgramBtn')?.addEventListener('click', () => {
-        try { handleSoloProgram(); } catch {}
-      });
+      const soloBtn = document.getElementById('addSoloProgramBtn');
+      if (soloBtn) {
+        soloBtn.addEventListener('click', () => {
+          try { handleSoloProgram(); } catch {}
+        });
+      }
 
       return; // stop here
     }

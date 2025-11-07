@@ -26,7 +26,7 @@
         </svg>
       </button>
     </div>
-    <div id="questSoloLabel" class="quest-solo-label">
+    <div id="questSoloLabel" class="quest-solo-label" hidden>
       <span data-i18n="soloProgram">Solo Leveling Program</span>
     </div>
     <div id="exerciseListContainer" class="exercise-list"></div>
@@ -134,7 +134,11 @@
             <hr>
             <div class="row">
               <label for="lbName" class="label" data-i18n="username">Username</label>
-              <input id="lbName" type="text" placeholder="e.g., Alex" autocomplete="name">
+              <input id="lbName" type="text" placeholder="123456" autocomplete="off" inputmode="numeric" pattern="[0-9]{6}">
+            </div>
+            <div class="row">
+              <label for="lbFriends" class="label">Friend IDs (comma-separated)</label>
+              <input id="lbFriends" type="text" placeholder="123456, 654321">
             </div>
             <div class="row">
               <label for="lbUrl" class="label" data-i18n="supabaseUrl">Supabase URL</label>
@@ -158,7 +162,7 @@
               <button id="showWeeklyNowBtn" class="btn wfull" data-i18n="showWeeklyNow">Show Weekly Summary</button>
             </div>
             <div class="row">
-              <button id="soloProgramBtn" class="btn wfull" data-i18n="soloProgram">Solo Leveling Program</button>
+              <button id="soloProgramBtn" class="btn wfull" data-i18n="soloProgram" hidden>Solo Leveling Program</button>
             </div>
             <div class="row">
               <button id="toggleDebugBtn" class="btn wfull" data-i18n="toggleDebugPanel">Toggle Debug Panel</button>

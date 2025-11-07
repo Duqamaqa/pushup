@@ -28,6 +28,7 @@
   const HISTORY_MAX_DAYS = 366;
   const ACC_KEY = 'settingsAccordionOpen';
   const THEME_KEY = 'theme';
+  const SOLO_PROGRAM_KEY = 'soloProgramEnabled';
   const THEMES = ['light', 'dark', 'quest'];
   const prefersDarkMedia = (typeof window !== 'undefined' && typeof window.matchMedia === 'function')
     ? window.matchMedia('(prefers-color-scheme: dark)')
@@ -946,14 +947,41 @@
     }
   }
 
+  function updateSoloProgramLabel(forceEnabled) {
+    const label = document.getElementById('questSoloLabel');
+    if (!label) return;
+
+    let enabled = forceEnabled;
+    if (typeof enabled === 'undefined') {
+      try {
+        enabled = localStorage.getItem(SOLO_PROGRAM_KEY) === '1';
+      } catch {
+        enabled = false;
+      }
+    }
+
+    if (enabled) {
+      label.removeAttribute('hidden');
+    } else {
+      label.setAttribute('hidden', '');
+    }
+  }
+
   // --- Leaderboard helpers ---
   function getLbConfig() {
     try {
       const name = localStorage.getItem('lbName') || '';
       const url = (localStorage.getItem('lbUrl') || SUPABASE_URL || '').trim();
       const key = (localStorage.getItem('lbKey') || SUPABASE_ANON || '').trim();
-      return { name, url, key };
-    } catch { return { name:'', url: SUPABASE_URL || '', key: SUPABASE_ANON || '' }; }
+      const friendRaw = localStorage.getItem('lbFriends') || '';
+      const friendIds = friendRaw
+        .split(/[^0-9A-Za-z]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      return { name, url, key, friendRaw, friendIds };
+    } catch {
+      return { name:'', url: SUPABASE_URL || '', key: SUPABASE_ANON || '', friendRaw:'', friendIds:[] };
+    }
   }
   function supaConfigured() {
     const { url, key, name } = getLbConfig();
@@ -985,15 +1013,20 @@
     }
   }
   async function loadLeaderboard() {
-    const { url, key } = getLbConfig();
+    const { url, key, name, friendIds } = getLbConfig();
     if (!url || !key) return [];
     const week = lastSundayStr();
     try {
-      const resp = await fetch(`${url}/rest/v1/leaderboard?select=*&week=eq.${week}&order=total.desc&limit=10`, {
+      const resp = await fetch(`${url}/rest/v1/leaderboard?select=*&week=eq.${week}&order=total.desc&limit=50`, {
         headers: { 'apikey': key, 'Authorization': 'Bearer ' + key }
       });
       if (!resp.ok) return [];
-      return await resp.json();
+      let rows = await resp.json();
+      const allowed = new Set([name, ...(friendIds || [])].filter(Boolean));
+      if (allowed.size) {
+        rows = rows.filter((r) => allowed.has(r.name));
+      }
+      return rows;
     } catch (e) {
       console.warn('loadLeaderboard failed', e);
       return [];
@@ -1446,11 +1479,18 @@
         <h2>${t('welcomeTitle')}</h2>
         <p>${t('noExercises')}</p>
         <button id="addFirstExerciseBtn" class="btn primary big">+ ${t('add')}</button>
+        <button id="addSoloProgramBtn" class="btn big">+ ${t('soloProgram')}</button>
       `;
       dash.appendChild(empty);
+
       document.getElementById('addFirstExerciseBtn')?.addEventListener('click', () => {
         try { openAddEditModal(); } catch {}
       });
+
+      document.getElementById('addSoloProgramBtn')?.addEventListener('click', () => {
+        try { handleSoloProgram(); } catch {}
+      });
+
       return; // stop here
     }
 
@@ -2129,6 +2169,7 @@
     const addExerciseBtn = $('#addExerciseBtn');
     const showWeeklyNowBtn = document.getElementById('showWeeklyNowBtn');
     const lbName = document.getElementById('lbName');
+    const lbFriends = document.getElementById('lbFriends');
     const lbUrl = document.getElementById('lbUrl');
     const lbKey = document.getElementById('lbKey');
     const saveLbCfgBtn = document.getElementById('saveLbCfgBtn');
@@ -2169,6 +2210,7 @@
       ? storedTheme
       : ((prefersDarkMedia?.matches) ? 'dark' : 'light');
     applyTheme(initialTheme, { persist: manualThemeSelection });
+    updateSoloProgramLabel();
     themeButtons.forEach((btn) => {
       btn.addEventListener('click', () => {
         const value = btn.getAttribute('data-theme-option');
@@ -2443,6 +2485,7 @@
       try {
         const cfg = getLbConfig();
         if (lbName) lbName.value = cfg.name || '';
+        if (lbFriends) lbFriends.value = cfg.friendRaw || '';
         if (lbUrl) lbUrl.value = cfg.url || '';
         if (lbKey) lbKey.value = cfg.key || '';
         if (openLeaderboardBtn) openLeaderboardBtn.style.display = (cfg.url && cfg.key && cfg.name) ? '' : 'none';
@@ -2607,6 +2650,8 @@
         ? `${t('soloProgramApplied')} ${created.length ? t('soloProgramCreated', { list: created.join(', ') }) : ''}`.trim()
         : t('soloProgramApplied');
       showToast(message);
+      try { localStorage.setItem(SOLO_PROGRAM_KEY, '1'); } catch {}
+      updateSoloProgramLabel(true);
     };
 
     soloProgramBtn?.addEventListener('click', handleSoloProgram);
@@ -2778,10 +2823,12 @@
     // Save leaderboard settings
     saveLbCfgBtn?.addEventListener('click', () => {
       const name = (lbName?.value || '').trim();
+      const friendsRaw = (lbFriends?.value || '').trim();
       const url = (lbUrl?.value || '').trim();
       const key = (lbKey?.value || '').trim();
       try {
         localStorage.setItem('lbName', name);
+        localStorage.setItem('lbFriends', friendsRaw);
         localStorage.setItem('lbUrl', url);
         localStorage.setItem('lbKey', key);
         if (openLeaderboardBtn) openLeaderboardBtn.style.display = (name && url && key) ? '' : 'none';

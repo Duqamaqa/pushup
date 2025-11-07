@@ -112,7 +112,7 @@ body {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 12px 14px calc(16px + env(safe-area-inset-bottom));
-  padding-top: calc(10px + env(safe-area-inset-top));
+  padding-top: calc(24px + env(safe-area-inset-top));
   display: flex;
   flex-direction: column;
   min-height: 100%;

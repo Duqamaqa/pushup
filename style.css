@@ -1059,6 +1059,28 @@ body.theme-quest.quest-overlay-active .container {
   color: rgba(148, 197, 255, 0.85);
 }
 
+.quest-history-switch {
+  display: flex;
+  gap: 6px;
+}
+
+.quest-history-btn {
+  flex: 1;
+  font-size: 0.78rem;
+  padding: 4px 0;
+  border: 1px solid rgba(30, 64, 175, 0.65);
+  background: rgba(5, 20, 48, 0.78);
+  color: rgba(191, 219, 254, 0.9);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.quest-history-btn.active {
+  background: rgba(30, 64, 175, 0.9);
+  color: #fff;
+}
+
 .quest-history-list {
   list-style: none;
   margin: 0;

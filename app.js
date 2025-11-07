@@ -765,6 +765,7 @@
     questGoals: document.getElementById('questGoals'),
     questEmpty: document.getElementById('questEmpty'),
     questHistoryList: document.getElementById('questHistoryList'),
+    questHistoryBtns: document.querySelectorAll('.quest-history-btn'),
     questStartBtn: document.getElementById('questStartBtn'),
     questSettingsBtn: document.getElementById('questSettingsBtn'),
   };
@@ -1201,75 +1202,60 @@
     const list = loadExercises?.() || [];
     const dayKeys = getRecentDays(days);
     return dayKeys.map((date) => {
-      let planned = 0;
-      let done = 0;
+      let planned = 0, done = 0;
       list.forEach((ex) => {
-        const entry = ex.history?.[date];
-        if (!entry) return;
-        planned += Number(entry.planned || 0);
-        done += Number(entry.done || 0);
+        const h = ex.history?.[date];
+        if (!h) return;
+        planned += Number(h.planned || 0);
+        done += Number(h.done || 0);
       });
-      const safePlanned = Math.max(0, planned);
-      const pct = safePlanned > 0 ? Math.round((done / safePlanned) * 100) : 0;
-
+      const pct = planned ? Math.round((done / planned) * 100) : 0;
       let label = 'Rest';
-      if (safePlanned || done) {
+      if (planned || done) {
         if (pct >= 100) label = 'Perfect';
         else if (pct >= 70) label = 'Almost';
         else if (pct >= 30) label = 'In progress';
         else if (pct > 0) label = 'Just started';
         else label = 'Missed';
       }
-
-      return { date, planned: safePlanned, done, pct, label };
+      return { date, planned, done, pct, label };
     });
   }
 
-  function renderQuestHistory() {
-    const root = el.questHistoryList || document.getElementById('questHistoryList');
+  function renderQuestHistory(days = 7) {
+    const root = el.questHistoryList;
     if (!root) return;
-
-    const summary = getQuestHistorySummary(10);
-    const hasData = summary.some((d) => d && (d.planned || d.done));
-
+    const data = getQuestHistorySummary(days);
     root.innerHTML = '';
-
-    if (!hasData) {
-      const li = document.createElement('li');
-      li.className = 'quest-history-item';
-      li.innerHTML = `
-        <div class="quest-history-row">
-          <span class="quest-history-date">No history yet</span>
-        </div>
-      `;
-      root.appendChild(li);
-      return;
-    }
-
     const frag = document.createDocumentFragment();
-    summary.forEach((day) => {
-      if (!day) return;
+    data.forEach((day) => {
       const li = document.createElement('li');
       li.className = 'quest-history-item';
-      li.style.setProperty('--pct', String(Math.max(0, Math.min(100, day.pct || 0))));
-
-      const planned = day.planned || 0;
-      const done = day.done || 0;
-
+      li.style.setProperty('--pct', day.pct);
       li.innerHTML = `
         <div class="quest-history-row">
-          <span class="quest-history-date">${day.date}</span>
-          <span class="quest-history-label">${day.label}</span>
-          <span class="quest-history-value">${n(done)} / ${n(planned)}</span>
+          <span>${day.date}</span>
+          <span>${day.label}</span>
+          <span>${n(day.done)} / ${n(day.planned)}</span>
         </div>
         <div class="quest-history-bar">
           <div class="quest-history-bar-fill"></div>
-        </div>
-      `;
+        </div>`;
       frag.appendChild(li);
     });
-
     root.appendChild(frag);
+  }
+
+  function initQuestHistorySwitch() {
+    const btns = document.querySelectorAll('.quest-history-btn');
+    btns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        btns.forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        const days = Number(btn.dataset.days) || 7;
+        renderQuestHistory(days);
+      });
+    });
   }
 
   function animateQuestProgress() {
@@ -1401,7 +1387,8 @@
     });
     if (mode === 'quest') {
       renderQuestOverlay(list);
-      renderQuestHistory();
+      renderQuestHistory(7);
+      initQuestHistorySwitch();
     }
   }
 
@@ -1897,7 +1884,7 @@
         saveExercises(items);
         updateQuestGoalCounts(items);
         renderQuestList(items);
-        renderQuestHistory();
+        renderQuestHistory(7);
       } else {
         if (typeof saveDebounced === 'function') saveDebounced(() => saveExercises(items));
         else saveExercises(items);

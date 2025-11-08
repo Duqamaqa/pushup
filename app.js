@@ -2642,6 +2642,7 @@
       });
       if (!updated.length) { showToast(t('soloProgramMissing')); return; }
       saveExercises(list);
+      renderDashboard(list);
       if (isQuestTheme()) renderQuestOverlay(list);
       updated.forEach((ex) => {
         updateExerciseCardView(ex);

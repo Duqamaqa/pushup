@@ -1462,7 +1462,7 @@
     const questMode = isQuestTheme();
     dash.classList.toggle('quest-exercise-list', questMode);
 
-    if (questMode) {
+    if (questMode && list.length > 0) {
       renderQuestOverlay(list);
       renderQuestList(list, dash);
       return;

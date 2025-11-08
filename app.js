@@ -2663,6 +2663,18 @@
 
     soloProgramBtn?.addEventListener('click', handleSoloProgram);
 
+    // Also handle the "+ Solo Leveling Program" button on the welcome screen
+    document.addEventListener('click', (event) => {
+      const btn = event.target.closest('#addSoloProgramBtn, #soloProgramBtn');
+      if (!btn) return;
+      event.preventDefault();
+      try {
+        handleSoloProgram();
+      } catch (e) {
+        console.error('handleSoloProgram failed', e);
+      }
+    });
+
     // Force update: unregister SWs, clear caches, bust URL and reload
     forceReloadBtn?.addEventListener('click', async () => {
       try {

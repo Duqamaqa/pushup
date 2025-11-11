@@ -1425,7 +1425,7 @@
     }
   }
 
-  function applyTheme(mode, { persist = true } = {}) {
+  function applyTheme(mode, { persist = true, rerender = true } = {}) {
     const root = document.documentElement;
     const body = document.body;
     const target = THEMES.includes(mode) ? mode : ((prefersDarkMedia?.matches) ? 'dark' : 'light');
@@ -1450,6 +1450,9 @@
       toggleQuestOverlay(false);
     }
     onThemeApplied(target, listNow);
+    if (rerender) {
+      try { renderDashboard(); } catch {}
+    }
   }
 
   // ---------- Rendering ----------
@@ -2215,7 +2218,7 @@
     const initialTheme = manualThemeSelection && storedTheme
       ? storedTheme
       : ((prefersDarkMedia?.matches) ? 'dark' : 'light');
-    applyTheme(initialTheme, { persist: manualThemeSelection });
+    applyTheme(initialTheme, { persist: manualThemeSelection, rerender: false });
     updateSoloProgramLabel();
     themeButtons.forEach((btn) => {
       btn.addEventListener('click', () => {

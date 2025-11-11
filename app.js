@@ -36,6 +36,7 @@
   // Optional Supabase (configured via Settings)
   const SUPABASE_URL = '';
   const SUPABASE_ANON = '';
+  const LB_ID_KEY = 'lbId';
   const EX_TEMPLATES = [
     { name:'Push-ups', unit:'reps', daily:50, steps:[10,20] },
     { name:'Squats',   unit:'reps', daily:60, steps:[10,20] },
@@ -130,7 +131,7 @@
       recent:'Recent', trends:'Trends', period:'Period', destination:'Destination',
       settingsIntro:'⚙️ Customize your app here. Use <b>Global</b> for app-wide settings, and <b>Per Exercise</b> for individual exercise details.',
       exportJson:'Export JSON', importJson:'Import JSON', hardRefresh:'Hard Refresh (update)',
-      username:'Username', supabaseUrl:'Supabase URL', supabaseKey:'Supabase Key (anon)',
+      leaderboardId:'Your ID', supabaseUrl:'Supabase URL', supabaseKey:'Supabase Key (anon)',
       saveLb:'Save Leaderboard Settings', openLb:'Friend Leaderboard', addNew:'+ Add New Exercise',
       showWeeklyNow:'Show Weekly Summary', toggleDebugPanel:'Toggle Debug Panel',
       themeLabel:'Theme', themeLight:'Light', themeDark:'Dark', themeQuest:'Quest',
@@ -182,7 +183,7 @@
       recent:'Neueste', trends:'Trends', period:'Zeitraum', destination:'Ziel',
       settingsIntro:'⚙️ Passe die App hier an. <b>Global</b> für appweite Einstellungen, <b>Pro Übung</b> für Details je Übung.',
       exportJson:'JSON exportieren', importJson:'JSON importieren', hardRefresh:'Hartes Aktualisieren (Update)',
-      username:'Benutzername', supabaseUrl:'Supabase‑URL', supabaseKey:'Supabase‑Schlüssel (anon)',
+      leaderboardId:'Deine ID', supabaseUrl:'Supabase‑URL', supabaseKey:'Supabase‑Schlüssel (anon)',
       saveLb:'Ranglisten‑Einstellungen speichern', openLb:'Freundes‑Rangliste', addNew:'+ Neue Übung hinzufügen',
       showWeeklyNow:'Wöchentliche Übersicht zeigen', toggleDebugPanel:'Debug‑Panel umschalten',
       themeLabel:'Thema', themeLight:'Hell', themeDark:'Dunkel', themeQuest:'Quest',
@@ -234,7 +235,7 @@
       recent:'Недавнее', trends:'Тренды', period:'Период', destination:'Куда',
       settingsIntro:'⚙️ Настройте приложение здесь. <b>Глобальные</b> — для всего приложения, <b>По упражнению</b> — для отдельных упражнений.',
       exportJson:'Экспорт JSON', importJson:'Импорт JSON', hardRefresh:'Жёсткое обновление (обновить)',
-      username:'Имя пользователя', supabaseUrl:'Supabase URL', supabaseKey:'Ключ Supabase (anon)',
+      leaderboardId:'Твой ID', supabaseUrl:'Supabase URL', supabaseKey:'Ключ Supabase (anon)',
       saveLb:'Сохранить настройки таблицы', openLb:'Таблица друзей', addNew:'+ Добавить упражнение',
       showWeeklyNow:'Показать недельную сводку', toggleDebugPanel:'Переключить панель отладки',
       themeLabel:'Тема', themeLight:'Светлая', themeDark:'Тёмная', themeQuest:'Квест',
@@ -722,8 +723,8 @@
     try {
       if (decStr) {
         const cfg = getLbConfig?.();
-        if (cfg && cfg.name && cfg.url && cfg.key) {
-          upsertScore(cfg.name, computeWeeklyTotalAll());
+        if (cfg && cfg.id && cfg.url && cfg.key) {
+          upsertScore(computeWeeklyTotalAll(), cfg);
         }
       }
     } catch {}
@@ -968,24 +969,65 @@
   }
 
   // --- Leaderboard helpers ---
-  function getLbConfig() {
+  function randomLbId() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+  }
+  function ensureLeaderboardId() {
+    let stored = '';
     try {
-      const name = localStorage.getItem('lbName') || '';
-      const url = (localStorage.getItem('lbUrl') || SUPABASE_URL || '').trim();
-      const key = (localStorage.getItem('lbKey') || SUPABASE_ANON || '').trim();
+      stored = localStorage.getItem(LB_ID_KEY) || localStorage.getItem('lbName') || '';
+    } catch {}
+    if (!/^\d{6}$/.test(stored)) stored = randomLbId();
+    try {
+      localStorage.setItem(LB_ID_KEY, stored);
+      localStorage.setItem('lbName', stored);
+    } catch {}
+    return stored;
+  }
+  function normalizeFriendIds(raw, selfId) {
+    const out = [];
+    const seen = new Set();
+    (raw || '')
+      .split(/[^0-9]+/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .forEach((id) => {
+        if (/^\d{6}$/.test(id) && id !== selfId && !seen.has(id)) {
+          seen.add(id);
+          out.push(id);
+        }
+      });
+    return out;
+  }
+  function parseFriendString(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) {
+      return raw
+        .map((v) => String(v || '').trim())
+        .filter((v) => /^\d{6}$/.test(v));
+    }
+    return normalizeFriendIds(String(raw || ''), '');
+  }
+  function getLbConfig() {
+    const fallbackUrl = (SUPABASE_URL || '').trim();
+    const fallbackKey = (SUPABASE_ANON || '').trim();
+    let id = '';
+    try {
+      id = ensureLeaderboardId();
+    } catch {}
+    try {
+      const url = (localStorage.getItem('lbUrl') || fallbackUrl).trim();
+      const key = (localStorage.getItem('lbKey') || fallbackKey).trim();
       const friendRaw = localStorage.getItem('lbFriends') || '';
-      const friendIds = friendRaw
-        .split(/[^0-9A-Za-z]+/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-      return { name, url, key, friendRaw, friendIds };
+      const friendIds = normalizeFriendIds(friendRaw, id);
+      return { id, url, key, friendRaw, friendIds };
     } catch {
-      return { name:'', url: SUPABASE_URL || '', key: SUPABASE_ANON || '', friendRaw:'', friendIds:[] };
+      return { id, url: fallbackUrl, key: fallbackKey, friendRaw:'', friendIds:[] };
     }
   }
   function supaConfigured() {
-    const { url, key, name } = getLbConfig();
-    return !!(url && key && name);
+    const { url, key, id } = getLbConfig();
+    return !!(url && key && id);
   }
   function computeWeeklyTotalAll() {
     const items = loadExercises() || [];
@@ -993,10 +1035,17 @@
     items.forEach(ex => { total += sumLast7Done(ex); });
     return total;
   }
-  async function upsertScore(name, total) {
-    const { url, key } = getLbConfig();
-    if (!url || !key) return;
-    const body = [{ name, total, week: lastSundayStr() }];
+  async function upsertScore(total, cfgOverride) {
+    const cfg = cfgOverride || getLbConfig();
+    if (!cfg) return;
+    const { url, key, id, friendIds } = cfg;
+    if (!url || !key || !id) return;
+    const body = [{
+      name: id,
+      total,
+      week: lastSundayStr(),
+      friends: friendIds.join(',')
+    }];
     try {
       await fetch(`${url}/rest/v1/leaderboard`, {
         method: 'POST',
@@ -1013,8 +1062,8 @@
     }
   }
   async function loadLeaderboard() {
-    const { url, key, name, friendIds } = getLbConfig();
-    if (!url || !key) return [];
+    const { url, key, id, friendIds } = getLbConfig();
+    if (!url || !key || !id) return [];
     const week = lastSundayStr();
     try {
       const resp = await fetch(`${url}/rest/v1/leaderboard?select=*&week=eq.${week}&order=total.desc&limit=50`, {
@@ -1022,10 +1071,15 @@
       });
       if (!resp.ok) return [];
       let rows = await resp.json();
-      const allowed = new Set([name, ...(friendIds || [])].filter(Boolean));
-      if (allowed.size) {
-        rows = rows.filter((r) => allowed.has(r.name));
-      }
+      const myFriends = new Set(friendIds || []);
+      rows = rows.filter((row) => {
+        const rowId = String(row?.name || '').trim();
+        if (!rowId) return false;
+        if (rowId === id) return true;
+        if (!myFriends.has(rowId)) return false;
+        const remoteFriends = new Set(parseFriendString(row?.friends || ''));
+        return remoteFriends.has(id);
+      });
       return rows;
     } catch (e) {
       console.warn('loadLeaderboard failed', e);
@@ -1382,7 +1436,7 @@
     }
     try {
       const cfg = getLbConfig();
-      if (cfg.name && cfg.url && cfg.key) upsertScore(cfg.name, computeWeeklyTotalAll());
+      if (cfg.id && cfg.url && cfg.key) upsertScore(computeWeeklyTotalAll(), cfg);
     } catch {}
     if (!isQuestTheme()) {
       updateExerciseCardView(ex);
@@ -1954,7 +2008,7 @@
     try { window.dispatchEvent(new CustomEvent('exercise-deleted', { detail: { id: exId } })); } catch {}
     try {
       const cfg = getLbConfig();
-      if (cfg.name && cfg.url && cfg.key) upsertScore(cfg.name, computeWeeklyTotalAll());
+      if (cfg.id && cfg.url && cfg.key) upsertScore(computeWeeklyTotalAll(), cfg);
     } catch {}
     try {
       const name = removed?.exerciseName || t('fallbackExercise');
@@ -1981,7 +2035,7 @@
       // Push updated weekly total to leaderboard (if configured)
       try {
         const cfg = getLbConfig();
-        if (cfg.name && cfg.url && cfg.key) upsertScore(cfg.name, computeWeeklyTotalAll());
+        if (cfg.id && cfg.url && cfg.key) upsertScore(computeWeeklyTotalAll(), cfg);
       } catch {}
       // Confetti when first reaching done today (do not disable buttons)
       if ((ex.remaining || 0) <= 0) {
@@ -2177,7 +2231,7 @@
     const importBtn = $('#importBtn');
     const addExerciseBtn = $('#addExerciseBtn');
     const showWeeklyNowBtn = document.getElementById('showWeeklyNowBtn');
-    const lbName = document.getElementById('lbName');
+    const lbIdField = document.getElementById('lbId');
     const lbFriends = document.getElementById('lbFriends');
     const lbUrl = document.getElementById('lbUrl');
     const lbKey = document.getElementById('lbKey');
@@ -2493,11 +2547,11 @@
       // Prefill leaderboard config and toggle leaderboard button
       try {
         const cfg = getLbConfig();
-        if (lbName) lbName.value = cfg.name || '';
+        if (lbIdField) lbIdField.value = cfg.id || '';
         if (lbFriends) lbFriends.value = cfg.friendRaw || '';
         if (lbUrl) lbUrl.value = cfg.url || '';
         if (lbKey) lbKey.value = cfg.key || '';
-        if (openLeaderboardBtn) openLeaderboardBtn.style.display = (cfg.url && cfg.key && cfg.name) ? '' : 'none';
+        if (openLeaderboardBtn) openLeaderboardBtn.style.display = (cfg.url && cfg.key && cfg.id) ? '' : 'none';
       } catch {}
       m.classList.remove('hidden');
       document.body.classList.add('no-scroll');
@@ -2654,7 +2708,7 @@
       });
       try {
         const cfg = getLbConfig();
-        if (cfg.name && cfg.url && cfg.key) upsertScore(cfg.name, computeWeeklyTotalAll());
+        if (cfg.id && cfg.url && cfg.key) upsertScore(computeWeeklyTotalAll(), cfg);
       } catch {}
       const message = created.length
         ? `${t('soloProgramApplied')} ${created.length ? t('soloProgramCreated', { list: created.join(', ') }) : ''}`.trim()
@@ -2813,7 +2867,7 @@
       // Push updated weekly total to leaderboard (if configured)
       try {
         const cfg = getLbConfig();
-        if (cfg.name && cfg.url && cfg.key) upsertScore(cfg.name, computeWeeklyTotalAll());
+        if (cfg.id && cfg.url && cfg.key) upsertScore(computeWeeklyTotalAll(), cfg);
       } catch {}
     });
 
@@ -2844,17 +2898,21 @@
 
     // Save leaderboard settings
     saveLbCfgBtn?.addEventListener('click', () => {
-      const name = (lbName?.value || '').trim();
+      const id = ensureLeaderboardId();
       const friendsRaw = (lbFriends?.value || '').trim();
       const url = (lbUrl?.value || '').trim();
       const key = (lbKey?.value || '').trim();
       try {
-        localStorage.setItem('lbName', name);
         localStorage.setItem('lbFriends', friendsRaw);
         localStorage.setItem('lbUrl', url);
         localStorage.setItem('lbKey', key);
-        if (openLeaderboardBtn) openLeaderboardBtn.style.display = (name && url && key) ? '' : 'none';
+        if (lbIdField) lbIdField.value = id || '';
+        if (openLeaderboardBtn) openLeaderboardBtn.style.display = (id && url && key) ? '' : 'none';
         showToast(t('lbSaved'));
+        const cfg = getLbConfig();
+        if (cfg.id && cfg.url && cfg.key) {
+          upsertScore(computeWeeklyTotalAll(), cfg);
+        }
       } catch {}
     });
 

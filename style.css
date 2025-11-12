@@ -274,7 +274,7 @@ button.large {
 }
 .exercise-card h2 {
   margin: 0 0 6px;
-  font-size: 1.1rem;
+  font-size: 1.35rem;
 }
 .streak {
   display: inline-flex;
@@ -1243,7 +1243,7 @@ body.theme-quest .quest-exercise-list {
 body.theme-quest .quest-ex-row {
   display: flex;
   align-items: center;
-  gap: clamp(10px, 3vw, 18px);
+  gap: clamp(8px, 2.5vw, 18px);
   background: rgba(4, 19, 36, 0.64);
   border: 1px solid rgba(56, 189, 248, 0.3);
   border-radius: 14px;
@@ -1271,9 +1271,11 @@ body.theme-quest .quest-ex-status {
   font-family: 'SFMono-Regular', Menlo, ui-monospace, monospace;
   font-size: 0.9rem;
   color: rgba(148, 197, 255, 0.92);
+  min-width: 96px;
+  text-align: center;
 }
 
-body.theme-quest .quest-ex-plus {
+body.theme-quest .quest-ex-btn {
   width: 34px;
   height: 34px;
   min-height: 34px;
@@ -1282,8 +1284,8 @@ body.theme-quest .quest-ex-plus {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  background: rgba(56, 189, 248, 0.16);
+  border: 1px solid transparent;
+  background: transparent;
   color: inherit;
   font-size: 18px;
   font-weight: 700;
@@ -1295,6 +1297,16 @@ body.theme-quest .quest-ex-plus {
   transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
 }
 
+body.theme-quest .quest-ex-btn span {
+  display: block;
+  line-height: 1;
+}
+
+body.theme-quest .quest-ex-plus {
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.16);
+}
+
 body.theme-quest .quest-ex-plus:hover,
 body.theme-quest .quest-ex-plus:focus-visible {
   background: rgba(56, 189, 248, 0.28);
@@ -1302,9 +1314,26 @@ body.theme-quest .quest-ex-plus:focus-visible {
   transform: translateY(-1px);
 }
 
-body.theme-quest .quest-ex-plus span {
-  display: block;
-  line-height: 1;
+body.theme-quest .quest-ex-minus {
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.16);
+  color: #fecaca;
+}
+
+body.theme-quest .quest-ex-minus:hover,
+body.theme-quest .quest-ex-minus:focus-visible {
+  background: rgba(248, 113, 113, 0.3);
+  border-color: rgba(248, 113, 113, 0.55);
+  transform: translateY(-1px);
+}
+
+body.theme-quest .quest-ex-minus[disabled],
+body.theme-quest .quest-ex-minus[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: rgba(148, 163, 184, 0.15);
+  border-color: rgba(148, 163, 184, 0.4);
+  transform: none;
 }
 
 body.theme-quest .quest-list-empty {
@@ -1376,7 +1405,7 @@ button { font-size: 18px; }
 .section-title { font-size: 1rem; }
 
 /* Feature-specific text */
-.ex-title { font-size: 19px; }
+.ex-title { font-size: 1.35rem; }
 .ex-tip { font-size: 14px; }
 #weeklyStats { font-size: 15px; }
 .tabs button { font-size: 13px; }

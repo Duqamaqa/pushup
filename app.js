@@ -773,16 +773,24 @@
   };
   if (el.list) {
     el.list.addEventListener('click', (event) => {
-      const btn = event.target.closest('.quest-ex-plus');
-      if (!btn || !el.list.contains(btn)) return;
       if (!isQuestTheme()) return;
-      event.preventDefault();
-      const id = btn.getAttribute('data-id');
-      if (!id) return;
-      questIncrement(id);
+      const plusBtn = event.target.closest('.quest-ex-plus');
+      if (plusBtn && el.list.contains(plusBtn)) {
+        event.preventDefault();
+        const id = plusBtn.getAttribute('data-id');
+        if (id) questIncrement(id);
+        return;
+      }
+      const minusBtn = event.target.closest('.quest-ex-minus');
+      if (minusBtn && el.list.contains(minusBtn)) {
+        event.preventDefault();
+        const id = minusBtn.getAttribute('data-id');
+        if (id) questDecrement(id);
+      }
     });
     el.list.addEventListener('dblclick', (event) => {
-      if (event.target.closest('.quest-ex-plus') && isQuestTheme()) {
+      if (!isQuestTheme()) return;
+      if (event.target.closest('.quest-ex-plus') || event.target.closest('.quest-ex-minus')) {
         event.preventDefault();
       }
     });
@@ -1393,16 +1401,31 @@
       const planned = Math.max(1, Number(entry.planned || 0) || Number(ex.dailyTarget || 0) || 1);
       status.textContent = `[${n(done)}/${n(planned)}]`;
 
+      const unit = ex.unit || 'reps';
+      const minusBtn = document.createElement('button');
+      minusBtn.type = 'button';
+      minusBtn.className = 'quest-ex-btn quest-ex-minus';
+      minusBtn.dataset.id = ex.id;
+      minusBtn.setAttribute('aria-label', t('minusLogged', { n: 1 }));
+      minusBtn.title = `-1 ${unit}`;
+      minusBtn.innerHTML = '<span aria-hidden="true">−</span>';
+      if (done <= 0) {
+        minusBtn.disabled = true;
+        minusBtn.setAttribute('aria-disabled', 'true');
+      } else {
+        minusBtn.disabled = false;
+        minusBtn.removeAttribute('aria-disabled');
+      }
+
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'quest-ex-plus';
+      button.className = 'quest-ex-btn quest-ex-plus';
       button.dataset.id = ex.id;
-      const unit = ex.unit || 'reps';
       button.setAttribute('aria-label', `${t('add')} 1 ${unit}`);
       button.title = `+1 ${unit}`;
       button.innerHTML = '<span aria-hidden="true">+</span>';
 
-      row.append(label, status, button);
+      row.append(label, minusBtn, status, button);
       frag.appendChild(row);
     });
 
@@ -1434,6 +1457,34 @@
     if (celebrate) {
       try { launchConfetti(); } catch {}
     }
+    try {
+      const cfg = getLbConfig();
+      if (cfg.id && cfg.url && cfg.key) upsertScore(computeWeeklyTotalAll(), cfg);
+    } catch {}
+    if (!isQuestTheme()) {
+      updateExerciseCardView(ex);
+    }
+  }
+
+  function questDecrement(exId) {
+    if (!exId) return;
+    const list = loadExercises() || [];
+    const ex = list.find((item) => item.id === exId);
+    if (!ex) return;
+    applyDailyRollover(ex);
+    const today = todayStrUTC();
+    const entry = ensureHistory(ex, today);
+    const currentDone = Math.max(0, Number(entry.done || 0));
+    if (currentDone <= 0) return;
+    entry.done = currentDone - 1;
+    const prevRemaining = Number.isFinite(Number(ex.remaining)) ? Number(ex.remaining) : 0;
+    ex.remaining = Math.max(0, prevRemaining + 1);
+    if ((ex.remaining || 0) > 0) {
+      try { ex._confettiDoneForToday = null; } catch {}
+    }
+    pruneHistory(ex);
+    invalidateStreak(ex.id);
+    persistExercise(ex);
     try {
       const cfg = getLbConfig();
       if (cfg.id && cfg.url && cfg.key) upsertScore(computeWeeklyTotalAll(), cfg);

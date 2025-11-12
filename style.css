@@ -1276,6 +1276,7 @@ body.theme-quest .quest-ex-status {
 body.theme-quest .quest-ex-plus {
   width: 34px;
   height: 34px;
+  min-height: 34px;
   aspect-ratio: 1 / 1;
   flex: 0 0 auto;
   display: grid;

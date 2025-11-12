@@ -20,11 +20,14 @@
   <main class="container">
     <div class="header-row">
       <h1 data-i18n="header">My Exercises</h1>
-      <button id="settingsBtn" data-i18n-aria-label="settings" aria-label="Settings">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.14 7.14 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 14.3 2h-4.6a.5.5 0 0 0-.5.42l-.36 2.54c-.6.23-1.14.54-1.63.94l-2.39-.96a.5.5 0 0 0-.61.22L2.29 9.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.14.23.42.32.67.22l2.39-.96c.49.4 1.03.71 1.63.94l.36 2.54c.05.25.25.42.5.42h4.6c.25 0 .45-.17.5-.42l.36-2.54c.6-.23 1.14-.54 1.63-.94l2.39.96c.25.1.53.01.67-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/>
-        </svg>
-      </button>
+      <div class="header-actions">
+        <button id="settingsBtn" data-i18n-aria-label="settings" aria-label="Settings">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.14 7.14 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 14.3 2h-4.6a.5.5 0 0 0-.5.42l-.36 2.54c-.6.23-1.14.54-1.63.94l-2.39-.96a.5.5 0 0 0-.61.22L2.29 9.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.14.23.42.32.67.22l2.39-.96c.49.4 1.03.71 1.63.94l.36 2.54c.05.25.25.42.5.42h4.6c.25 0 .45-.17.5-.42l.36-2.54c.6-.23 1.14-.54 1.63-.94l2.39.96c.25.1.53.01.67-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/>
+          </svg>
+        </button>
+        <button id="friendsBtn" class="header-pill" data-i18n="friends" data-i18n-aria-label="friends" aria-label="Friends">Friends</button>
+      </div>
     </div>
     <div id="questSoloLabel" class="quest-solo-label" hidden>
       <span data-i18n="soloProgram">Solo Leveling Program</span>
@@ -250,6 +253,25 @@
       <div id="leaderboardList"></div>
       <div class="modal-actions">
         <button id="closeLeaderboard" data-i18n="close">Close</button>
+      </div>
+    </div>
+  </div>
+  <div id="friendsModal" class="modal hidden" aria-modal="true" aria-labelledby="friendsTitle">
+    <div class="modal-content">
+      <h2 id="friendsTitle" data-i18n="friends">Friends</h2>
+      <p class="friends-copy" data-i18n="friendsHint">Invite friends to compare weekly progress.</p>
+      <div id="friendsList" class="friends-list" data-i18n="noFriendsYet">No friends yet.</div>
+      <div class="friends-actions">
+        <button id="addFriendBtn" class="btn primary wfull">+ <span data-i18n="addFriend">Add Friend</span></button>
+        <form id="friendsForm" class="friends-form" hidden>
+          <label for="friendIdInput" data-i18n="friendIdLabel">Friend ID</label>
+          <input id="friendIdInput" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="123456" autocomplete="off" />
+          <small id="friendIdError" class="error-msg" hidden data-i18n="friendIdErr">Enter a 6-digit friend ID.</small>
+          <label for="friendNameInput" data-i18n="friendNameLabel">Friend Name</label>
+          <input id="friendNameInput" type="text" placeholder="Jess" autocomplete="off" />
+          <button id="saveFriendBtn" class="btn primary wfull" type="submit" data-i18n="saveFriend">Save Friend</button>
+        </form>
+        <button id="closeFriendsBtn" class="btn wfull" data-i18n="close">Close</button>
       </div>
     </div>
   </div>

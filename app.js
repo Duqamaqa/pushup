@@ -29,6 +29,7 @@
   const ACC_KEY = 'settingsAccordionOpen';
   const THEME_KEY = 'theme';
   const SOLO_PROGRAM_KEY = 'soloProgramEnabled';
+  const FRIENDS_LIST_KEY = 'friendEntries';
   const THEMES = ['light', 'dark', 'quest'];
   const prefersDarkMedia = (typeof window !== 'undefined' && typeof window.matchMedia === 'function')
     ? window.matchMedia('(prefers-color-scheme: dark)')
@@ -115,7 +116,9 @@
 
   const I18N = {
     en: {
-      appTitle:'Daily Exercise Counter', header:'My Exercises',
+      appTitle:'Daily Exercise Counter', header:'My Exercises', friends:'Friends', friendsHint:'Invite friends to compare weekly progress.', addFriend:'Add Friend',
+      friendIdLabel:'Friend ID', friendNameLabel:'Friend Name', saveFriend:'Save Friend', friendIdErr:'Enter a valid 6-digit friend ID.',
+      noFriendsYet:'No friends yet.', friendAdded:'Friend saved.', friendUpdated:'Friend updated.', friendNoName:'Unnamed friend',
       dark:'Dark', share:'Share', add:'Add New Exercise', global:'Global', perEx:'Per Exercise',
       settings:'Settings', language:'Language', apply:'Apply', cancel:'Cancel', history:'History', close:'Close',
       edit:'Edit',
@@ -167,7 +170,9 @@
       destTelegram:'Telegram', destWhatsApp:'WhatsApp', destInstagram:'Instagram', destCopy:'Copy Image + Link'
     },
     de: {
-      appTitle:'Täglicher Trainingszähler', header:'Meine Übungen',
+      appTitle:'Täglicher Trainingszähler', header:'Meine Übungen', friends:'Freunde', friendsHint:'Lade Freunde ein, um eure Fortschritte zu vergleichen.', addFriend:'Freund hinzufügen',
+      friendIdLabel:'Freundes-ID', friendNameLabel:'Name des Freundes', saveFriend:'Freund speichern', friendIdErr:'Gib eine gültige 6-stellige ID ein.',
+      noFriendsYet:'Noch keine Freunde eingetragen.', friendAdded:'Freund gespeichert.', friendUpdated:'Freund aktualisiert.', friendNoName:'Unbenannter Freund',
       dark:'Dunkel', share:'Teilen', add:'Neue Übung hinzufügen', global:'Global', perEx:'Pro Übung',
       settings:'Einstellungen', language:'Sprache', apply:'Anwenden', cancel:'Abbrechen', history:'Verlauf', close:'Schließen',
       edit:'Bearbeiten',
@@ -805,6 +810,14 @@
   const shareCardBtn = document.getElementById('shareCardBtn');
   const leaderboardModal = document.getElementById('leaderboardModal');
   const leaderboardList = document.getElementById('leaderboardList');
+  const friendsModal = document.getElementById('friendsModal');
+  const closeFriendsBtn = document.getElementById('closeFriendsBtn');
+  const addFriendBtn = document.getElementById('addFriendBtn');
+  const friendsForm = document.getElementById('friendsForm');
+  const friendsListEl = document.getElementById('friendsList');
+  const friendIdInput = document.getElementById('friendIdInput');
+  const friendNameInput = document.getElementById('friendNameInput');
+  const friendIdError = document.getElementById('friendIdError');
   let manualThemeSelection = false;
   let themeButtons = [];
   let questGoalRows = [];
@@ -1015,6 +1028,38 @@
         .filter((v) => /^\d{6}$/.test(v));
     }
     return normalizeFriendIds(String(raw || ''), '');
+  }
+  function readFriendEntries() {
+    try {
+      const raw = localStorage.getItem(FRIENDS_LIST_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map((item) => ({
+          id: String(item?.id || '').trim(),
+          name: String(item?.name || '').trim()
+        }))
+        .filter((item) => /^\d{6}$/.test(item.id));
+    } catch {
+      return [];
+    }
+  }
+  function writeFriendEntries(list) {
+    try { localStorage.setItem(FRIENDS_LIST_KEY, JSON.stringify(list)); } catch {}
+  }
+  function seedFriendEntriesFromRaw() {
+    let raw = '';
+    try { raw = localStorage.getItem('lbFriends') || ''; } catch {}
+    const ids = normalizeFriendIds(raw, ensureLeaderboardId());
+    if (!ids.length) return [];
+    const seeded = ids.map((id) => ({ id, name: '' }));
+    writeFriendEntries(seeded);
+    return seeded;
+  }
+  function getFriendEntries() {
+    const entries = readFriendEntries();
+    return entries.length ? entries : seedFriendEntriesFromRaw();
   }
   function getLbConfig() {
     const fallbackUrl = (SUPABASE_URL || '').trim();
@@ -2276,6 +2321,7 @@
     // Theme: detect and apply before rendering
     // Settings modal elements
     const settingsBtn = $('#settingsBtn');
+    const friendsBtn = $('#friendsBtn');
     const settingsModal = $('#settingsModal');
     const closeSettingsBtn = $('#closeSettingsBtn');
     const exportBtn = $('#exportBtn');
@@ -2634,20 +2680,130 @@
       document.body.classList.remove('no-scroll');
     }
 
+    function hideFriendIdError() {
+      if (friendIdError) friendIdError.hidden = true;
+    }
+    function showFriendIdError(msg) {
+      if (!friendIdError) return;
+      friendIdError.textContent = msg || t('friendIdErr');
+      friendIdError.hidden = false;
+    }
+    function resetFriendsFormState() {
+      if (friendsForm) friendsForm.setAttribute('hidden', '');
+      hideFriendIdError();
+      if (friendIdInput) friendIdInput.value = '';
+      if (friendNameInput) friendNameInput.value = '';
+      addFriendBtn?.removeAttribute('hidden');
+    }
+    function renderFriendsList() {
+      if (!friendsListEl) return;
+      const entries = getFriendEntries();
+      friendsListEl.innerHTML = '';
+      if (!entries.length) {
+        friendsListEl.textContent = t('noFriendsYet');
+        friendsListEl.classList.add('empty');
+        return;
+      }
+      friendsListEl.classList.remove('empty');
+      entries.forEach((entry) => {
+        const row = document.createElement('div');
+        row.className = 'friends-row';
+        const nameEl = document.createElement('strong');
+        nameEl.textContent = entry.name || t('friendNoName');
+        const idEl = document.createElement('span');
+        idEl.textContent = entry.id;
+        row.appendChild(nameEl);
+        row.appendChild(idEl);
+        friendsListEl.appendChild(row);
+      });
+    }
+    function handleFriendSave() {
+      const id = (friendIdInput?.value || '').trim();
+      const name = (friendNameInput?.value || '').trim();
+      hideFriendIdError();
+      if (!/^\d{6}$/.test(id)) {
+        showFriendIdError(t('friendIdErr'));
+        friendIdInput?.focus();
+        return;
+      }
+      const entries = getFriendEntries();
+      const next = [...entries];
+      const idx = next.findIndex((f) => f.id === id);
+      const payload = { id, name };
+      if (idx >= 0) {
+        next[idx] = payload;
+      } else {
+        next.push(payload);
+      }
+      writeFriendEntries(next);
+      syncFriendIdsToSettings(next);
+      renderFriendsList();
+      if (friendIdInput) friendIdInput.value = '';
+      if (friendNameInput) friendNameInput.value = '';
+      const toastKey = idx >= 0 ? 'friendUpdated' : 'friendAdded';
+      showToast(t(toastKey));
+      friendIdInput?.focus();
+    }
+    function syncFriendIdsToSettings(entries) {
+      const ids = (entries || getFriendEntries()).map((entry) => entry.id).filter(Boolean);
+      const joined = ids.join(', ');
+      try { localStorage.setItem('lbFriends', joined); } catch {}
+      if (lbFriends) lbFriends.value = joined;
+    }
+    function reconcileFriendEntries(friendsRaw, selfId) {
+      const ids = normalizeFriendIds(friendsRaw || '', selfId || '');
+      if (!ids.length) {
+        writeFriendEntries([]);
+        return [];
+      }
+      const existing = getFriendEntries();
+      const nameMap = new Map(existing.map((entry) => [entry.id, entry.name]));
+      const next = ids.map((id) => ({ id, name: nameMap.get(id) || '' }));
+      writeFriendEntries(next);
+      return next;
+    }
+    function openFriendsModal() {
+      renderFriendsList();
+      resetFriendsFormState();
+      closeShareModal();
+      closeSettingsModal();
+      friendsModal?.classList.remove('hidden');
+      document.body.classList.add('no-scroll');
+    }
+    function closeFriendsModal() {
+      resetFriendsFormState();
+      friendsModal?.classList.add('hidden');
+      document.body.classList.remove('no-scroll');
+    }
+
     // Back-compat wrappers
     function openSettings() { openSettingsModal(); }
     function closeSettings() { closeSettingsModal(); }
 
     settingsBtn?.addEventListener('click', openSettingsModal);
+    friendsBtn?.addEventListener('click', openFriendsModal);
     closeSettingsBtn?.addEventListener('click', closeSettingsModal);
+    closeFriendsBtn?.addEventListener('click', closeFriendsModal);
     exerciseSelect?.addEventListener('change', (e) => {
       currentExerciseId = e.target.value || null;
+    });
+
+    addFriendBtn?.addEventListener('click', () => {
+      friendsForm?.removeAttribute('hidden');
+      addFriendBtn?.setAttribute('hidden', '');
+      hideFriendIdError();
+      friendIdInput?.focus();
+    });
+    friendsForm?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      handleFriendSave();
     });
 
     // Close on Escape and overlay click
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         if (!shareModal?.classList.contains('hidden')) { closeShareModal(); return; }
+        if (!friendsModal?.classList.contains('hidden')) { closeFriendsModal(); return; }
         if (!settingsModal?.classList.contains('hidden')) { closeSettingsModal(); return; }
         // Close Add/Edit if open
         const addEditOpen = el.modal && !el.modal.hidden;
@@ -2656,6 +2812,9 @@
     });
     settingsModal?.addEventListener('click', (e) => {
       if (e.target === settingsModal) closeSettingsModal();
+    });
+    friendsModal?.addEventListener('click', (e) => {
+      if (e.target === friendsModal) closeFriendsModal();
     });
     // Close Add/Edit when tapping overlay (not inside panel)
     el.modal?.addEventListener('click', (e) => {
@@ -2959,6 +3118,10 @@
         localStorage.setItem('lbKey', key);
         if (lbIdField) lbIdField.value = id || '';
         if (openLeaderboardBtn) openLeaderboardBtn.style.display = (id && url && key) ? '' : 'none';
+        reconcileFriendEntries(friendsRaw, id);
+        if (friendsModal && !friendsModal.classList.contains('hidden')) {
+          renderFriendsList();
+        }
         showToast(t('lbSaved'));
         const cfg = getLbConfig();
         if (cfg.id && cfg.url && cfg.key) {
@@ -2967,8 +3130,7 @@
       } catch {}
     });
 
-    // Open leaderboard modal
-    openLeaderboardBtn?.addEventListener('click', async () => {
+    async function openLeaderboardModal() {
       if (!supaConfigured()) { showToast(t('cfgSupabaseFirst')); return; }
       const rows = await loadLeaderboard();
       if (leaderboardList) {
@@ -2986,7 +3148,10 @@
         }
       }
       leaderboardModal?.classList.remove('hidden');
-    });
+    }
+
+    // Open leaderboard modal
+    openLeaderboardBtn?.addEventListener('click', openLeaderboardModal);
 
     document.getElementById('closeLeaderboard')?.addEventListener('click', () => {
       leaderboardModal?.classList.add('hidden');

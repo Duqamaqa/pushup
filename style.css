@@ -187,7 +187,9 @@ h1 {
 }
 
 input[type="text"],
-input[type="number"] {
+input[type="number"],
+input[type="email"],
+input[type="password"] {
   width: 100%;
   padding: 14px 14px;
   border-radius: 12px;
@@ -217,6 +219,21 @@ input:focus {
   color: #ef4444;
   font-size: 12px;
 }
+
+.auth-status {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.auth-message {
+  min-height: 20px;
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin: 8px 0 0;
+}
+.auth-message.error { color: #ef4444; }
+.auth-message.success { color: #22c55e; }
 
 button {
   appearance: none;

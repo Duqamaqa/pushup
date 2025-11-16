@@ -14,6 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <meta name="theme-color" content="#111111" />
   <script src="commit.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -27,6 +28,7 @@
           </svg>
         </button>
         <button id="friendsBtn" class="header-pill" data-i18n="friends" data-i18n-aria-label="friends" aria-label="Friends">Friends</button>
+        <button id="accountBtn" class="header-pill" data-i18n="account" data-i18n-aria-label="account" aria-label="Account">Account</button>
       </div>
     </div>
     <div id="questSoloLabel" class="quest-solo-label" hidden>
@@ -90,6 +92,32 @@
       </div>
     </div>
   </div>
+
+  <section id="authModal" class="modal hidden" aria-labelledby="authTitle" aria-modal="true">
+    <div class="modal-card" role="dialog">
+      <h2 id="authTitle" data-i18n="account">Account</h2>
+      <p id="authStatusText" class="auth-status" aria-live="polite" data-i18n="authSignedOut">You are signed out.</p>
+      <div class="field">
+        <label for="authEmail" data-i18n="emailLabel">Email</label>
+        <input type="email" id="authEmail" autocomplete="email" inputmode="email" placeholder="you@example.com" />
+      </div>
+      <div class="field">
+        <label for="authPassword" data-i18n="passwordLabel">Password</label>
+        <input type="password" id="authPassword" autocomplete="current-password" placeholder="••••••••" />
+      </div>
+      <p id="authMessage" class="auth-message" aria-live="polite"></p>
+      <div class="modal-actions">
+        <button id="authLoginBtn" class="primary btn-block" data-i18n="logIn">Log In</button>
+        <button id="authRegisterBtn" class="btn-block" data-i18n="register">Register</button>
+      </div>
+      <div class="modal-actions single">
+        <button id="authLogoutBtn" class="btn wfull" data-i18n="logOut" hidden>Log Out</button>
+      </div>
+      <div class="modal-actions single">
+        <button id="authCloseBtn" class="btn wfull" data-i18n="close">Close</button>
+      </div>
+    </div>
+  </section>
 
   <!-- Settings Modal -->
   <section id="settingsModal" class="modal hidden" aria-modal="true" aria-labelledby="settingsTitle">

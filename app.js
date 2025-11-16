@@ -35,9 +35,10 @@
     ? window.matchMedia('(prefers-color-scheme: dark)')
     : null;
   // Optional Supabase (configured via Settings)
-  const SUPABASE_URL = '';
-  const SUPABASE_ANON = '';
+  const SUPABASE_URL = 'https://ztmhypducvrqpgkbfftl.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0bWh5cGR1Y3ZycXBna2JmZnRsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMyODU2NzYsImV4cCI6MjA3ODg2MTY3Nn0.OZrziouM6_cS1ij3JU2KicaM7xBT1l2ynV_anI8asLg';
   const LB_ID_KEY = 'lbId';
+  const LAST_AUTH_EMAIL_KEY = 'authLastEmail';
   const EX_TEMPLATES = [
     { name:'Push-ups', unit:'reps', daily:50, steps:[10,20] },
     { name:'Squats',   unit:'reps', daily:60, steps:[10,20] },
@@ -66,8 +67,20 @@
     'Celebrate small wins.',
     'Just one more small push.',
     'Start light and progress steadily.',
-    'Stack habits: pair with a routine.',
+      'Stack habits: pair with a routine.',
   ];
+
+  const hasSupabaseClient = typeof window !== 'undefined'
+    && window.supabase
+    && typeof window.supabase.createClient === 'function';
+  const supabaseClient = hasSupabaseClient
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
+    : null;
+  if (supabaseClient) {
+    try { window.supabaseClient = supabaseClient; } catch {}
+  }
+  let authUser = null;
+  try { window.currentUser = null; } catch {}
 
   function dailyQuote(seedStr) { // stable per day
     const s = (String(seedStr || '') + todayStrUTC())
@@ -117,6 +130,7 @@
   const I18N = {
     en: {
       appTitle:'Daily Exercise Counter', header:'My Exercises', friends:'Friends', friendsHint:'Invite friends to compare weekly progress.', addFriend:'Add Friend',
+      account:'Account', logIn:'Log In', register:'Register', logOut:'Log Out',
       friendIdLabel:'Friend ID', friendNameLabel:'Friend Name', saveFriend:'Save Friend', friendIdErr:'Enter a valid 6-digit friend ID.',
       noFriendsYet:'No friends yet.', friendAdded:'Friend saved.', friendUpdated:'Friend updated.', friendNoName:'Unnamed friend',
       dark:'Dark', share:'Share', add:'Add New Exercise', global:'Global', perEx:'Per Exercise',
@@ -131,6 +145,7 @@
       unitLabel:'Unit', unitReps:'reps', unitMin:'min', unitKm:'km',
       quickStepsLabel:'Quick steps (comma-separated, e.g., 1,5,10)', quickStepsPh:'e.g., 1,5,10',
       weeklyGoalLabel:'Weekly goal (total reps)', weeklyGoalPh:'e.g., 500', save:'Save',
+      emailLabel:'Email', passwordLabel:'Password',
       recent:'Recent', trends:'Trends', period:'Period', destination:'Destination',
       settingsIntro:'⚙️ Customize your app here. Use <b>Global</b> for app-wide settings, and <b>Per Exercise</b> for individual exercise details.',
       exportJson:'Export JSON', importJson:'Import JSON', hardRefresh:'Hard Refresh (update)',
@@ -153,6 +168,11 @@
       selectExercise:'Select exercise', customDecrement:'Custom decrement', customApply:'Apply',
       shareToday:'Share: Today', shareWeek:'Share: Week', shareMonth:'Share: Month', shareProgressCard:'Share Progress Card',
       langTitle:'Language', langCancel:'Cancel',
+      authSignedOut:'You are signed out.', authSignedIn:'Signed in as {email}',
+      authMissingFields:'Enter both email and password.', authLoginSuccess:'Welcome back!',
+      authRegisterSuccess:'Account created.', authCheckEmail:'Check your email to confirm your account.',
+      authUnknownError:'Something went wrong. Please try again.', authUnavailable:'Authentication is unavailable right now.',
+      authLoggedOut:'Signed out successfully.',
       doneMsg:'Great job! ✅', daily:'Daily', done:'Done', left:'Left', over:'over',
       addExtraPh:'Add extra...', addExtraBtn:'+ Add', thisWeek:'This week: {done} / {goal}', fallbackExercise:'Exercise',
       q1:'Small steps add up. Keep going.', q2:'Form first, speed second.', q3:'Consistency beats intensity.', q4:'Hydrate and breathe between sets.', q5:'Perfect is the enemy of done.', q6:'You only improve what you track.', q7:'A little today beats a lot someday.', q8:'Warm up. Cool down. Recover well.', q9:'Focus on quality reps.', q10:'Set the next micro‑goal now.', q11:'Show up, even for five minutes.', q12:'Don’t break the chain today.', q13:'Your future self thanks you.', q14:'Make it easy to start.', q15:'Celebrate small wins.', q16:'Just one more small push.', q17:'Start light and progress steadily.', q18:'Stack habits: pair with a routine.',
@@ -171,6 +191,7 @@
     },
     de: {
       appTitle:'Täglicher Trainingszähler', header:'Meine Übungen', friends:'Freunde', friendsHint:'Lade Freunde ein, um eure Fortschritte zu vergleichen.', addFriend:'Freund hinzufügen',
+      account:'Konto', logIn:'Anmelden', register:'Registrieren', logOut:'Abmelden',
       friendIdLabel:'Freundes-ID', friendNameLabel:'Name des Freundes', saveFriend:'Freund speichern', friendIdErr:'Gib eine gültige 6-stellige ID ein.',
       noFriendsYet:'Noch keine Freunde eingetragen.', friendAdded:'Freund gespeichert.', friendUpdated:'Freund aktualisiert.', friendNoName:'Unbenannter Freund',
       dark:'Dunkel', share:'Teilen', add:'Neue Übung hinzufügen', global:'Global', perEx:'Pro Übung',
@@ -185,6 +206,7 @@
       unitLabel:'Einheit', unitReps:'Wdh.', unitMin:'Min', unitKm:'km',
       quickStepsLabel:'Schnelle Schritte (kommagetrennt, z. B. 1,5,10)', quickStepsPh:'z. B. 1,5,10',
       weeklyGoalLabel:'Wöchentliches Ziel (gesamt)', weeklyGoalPh:'z. B. 500', save:'Speichern',
+      emailLabel:'E-Mail', passwordLabel:'Passwort',
       recent:'Neueste', trends:'Trends', period:'Zeitraum', destination:'Ziel',
       settingsIntro:'⚙️ Passe die App hier an. <b>Global</b> für appweite Einstellungen, <b>Pro Übung</b> für Details je Übung.',
       exportJson:'JSON exportieren', importJson:'JSON importieren', hardRefresh:'Hartes Aktualisieren (Update)',
@@ -207,6 +229,11 @@
       selectExercise:'Übung auswählen', customDecrement:'Benutzerdef. Abzug', customApply:'Anwenden',
       shareToday:'Teilen: Heute', shareWeek:'Teilen: Woche', shareMonth:'Teilen: Monat', shareProgressCard:'Fortschrittskarte teilen',
       langTitle:'Sprache', langCancel:'Abbrechen',
+      authSignedOut:'Du bist abgemeldet.', authSignedIn:'Angemeldet als {email}',
+      authMissingFields:'Bitte E-Mail und Passwort eingeben.', authLoginSuccess:'Willkommen zurück!',
+      authRegisterSuccess:'Konto erstellt.', authCheckEmail:'Prüfe deine E-Mail zur Bestätigung.',
+      authUnknownError:'Etwas ist schiefgelaufen. Bitte erneut versuchen.', authUnavailable:'Anmeldung ist derzeit nicht verfügbar.',
+      authLoggedOut:'Erfolgreich abgemeldet.',
       doneMsg:'Gute Arbeit! ✅', daily:'Täglich', done:'Erledigt', left:'Übrig', over:'darüber',
       addExtraPh:'Extra hinzufügen…', addExtraBtn:'+ Hinzufügen', thisWeek:'Diese Woche: {done} / {goal}', fallbackExercise:'Übung',
       q1:'Kleine Schritte summieren sich. Weiter so.', q2:'Form vor Tempo.', q3:'Konstanz schlägt Intensität.', q4:'Trinke und atme zwischen den Sätzen.', q5:'Perfekt ist der Feind des Guten.', q6:'Du verbesserst nur, was du misst.', q7:'Ein bisschen heute schlägt viel irgendwann.', q8:'Aufwärmen. Abkühlen. Gut erholen.', q9:'Fokus auf saubere Wiederholungen.', q10:'Setze jetzt das nächste Mikroziel.', q11:'Erscheine – auch nur fünf Minuten.', q12:'Unterbrich die Kette heute nicht.', q13:'Dein Zukunfts‑Ich dankt dir.', q14:'Mach den Start einfach.', q15:'Feiere kleine Erfolge.', q16:'Nur noch ein kleiner Schub.', q17:'Leicht beginnen, stetig steigern.', q18:'Gewohnheiten stapeln: mit Routine koppeln.',
@@ -225,6 +252,7 @@
     },
     ru: {
       appTitle:'Ежедневный счётчик упражнений', header:'Мои упражнения',
+      account:'Аккаунт', logIn:'Войти', register:'Регистрация', logOut:'Выйти',
       dark:'Тёмная тема', share:'Поделиться', add:'Добавить упражнение', global:'Глобальные', perEx:'По упражнению',
       settings:'Настройки', language:'Язык', apply:'Применить', cancel:'Отмена', history:'История', close:'Закрыть',
       edit:'Редактировать',
@@ -237,6 +265,7 @@
       unitLabel:'Единица', unitReps:'повт.', unitMin:'мин', unitKm:'км',
       quickStepsLabel:'Быстрые шаги (через запятую, напр., 1,5,10)', quickStepsPh:'напр., 1,5,10',
       weeklyGoalLabel:'Недельная цель (всего)', weeklyGoalPh:'напр., 500', save:'Сохранить',
+      emailLabel:'Эл. почта', passwordLabel:'Пароль',
       recent:'Недавнее', trends:'Тренды', period:'Период', destination:'Куда',
       settingsIntro:'⚙️ Настройте приложение здесь. <b>Глобальные</b> — для всего приложения, <b>По упражнению</b> — для отдельных упражнений.',
       exportJson:'Экспорт JSON', importJson:'Импорт JSON', hardRefresh:'Жёсткое обновление (обновить)',
@@ -259,6 +288,11 @@
       selectExercise:'Выбрать упражнение', customDecrement:'Произвольное уменьшение', customApply:'Применить',
       shareToday:'Поделиться: Сегодня', shareWeek:'Поделиться: Неделя', shareMonth:'Поделиться: Месяц', shareProgressCard:'Поделиться карточкой',
       langTitle:'Язык', langCancel:'Отмена',
+      authSignedOut:'Вы вышли из аккаунта.', authSignedIn:'Выполнен вход как {email}',
+      authMissingFields:'Введите email и пароль.', authLoginSuccess:'С возвращением!',
+      authRegisterSuccess:'Аккаунт создан.', authCheckEmail:'Проверьте почту, чтобы подтвердить аккаунт.',
+      authUnknownError:'Что-то пошло не так. Попробуйте ещё раз.', authUnavailable:'Авторизация сейчас недоступна.',
+      authLoggedOut:'Вы вышли из аккаунта.',
       doneMsg:'Отличная работа! ✅', daily:'Дневная', done:'Сделано', left:'Осталось', over:'сверх',
       addExtraPh:'Добавить ещё…', addExtraBtn:'+ Добавить', thisWeek:'На этой неделе: {done} / {goal}', fallbackExercise:'Упражнение',
       q1:'Маленькие шаги складываются. Продолжайте.', q2:'Техника прежде скорости.', q3:'Постоянство важнее интенсивности.', q4:'Пейте воду и дышите между подходами.', q5:'Идеальное — враг сделанного.', q6:'Улучшаешь то, что отслеживаешь.', q7:'Немного сегодня лучше, чем много когда‑нибудь.', q8:'Разминайтесь. Заминка. Восстановление.', q9:'Фокус на качестве повторов.', q10:'Поставьте следующее микро‑цель сейчас.', q11:'Появись, даже на пять минут.', q12:'Не прерывай цепочку сегодня.', q13:'Будущий ты скажет спасибо.', q14:'Сделай старт простым.', q15:'Празднуй маленькие победы.', q16:'Ещё одно маленькое усилие.', q17:'Начинай легко и прогрессируй.', q18:'Связывай привычки с рутиной.',
@@ -360,6 +394,7 @@
       if (flagSpan) flagSpan.textContent = flagFor(lang);
       // Apply data-i18n across DOM
       try { applyI18nToDOM(); } catch {}
+      try { refreshAuthStatusText(); } catch {}
       // Re-render dashboard so dynamic labels reflect language
       try { renderDashboard(); } catch {}
       // Refresh open History modal (if visible)
@@ -2322,6 +2357,7 @@
     // Settings modal elements
     const settingsBtn = $('#settingsBtn');
     const friendsBtn = $('#friendsBtn');
+    const accountBtn = $('#accountBtn');
     const settingsModal = $('#settingsModal');
     const closeSettingsBtn = $('#closeSettingsBtn');
     const exportBtn = $('#exportBtn');
@@ -2359,6 +2395,15 @@
     const toggleDebugBtn = $('#toggleDebugBtn');
     const soloProgramBtn = $('#soloProgramBtn');
     const debugPanel = $('#debugPanel');
+    const authModal = $('#authModal');
+    const authEmailInput = document.getElementById('authEmail');
+    const authPasswordInput = document.getElementById('authPassword');
+    const authStatusText = document.getElementById('authStatusText');
+    const authMessage = document.getElementById('authMessage');
+    const authLoginBtn = document.getElementById('authLoginBtn');
+    const authRegisterBtn = document.getElementById('authRegisterBtn');
+    const authCloseBtn = document.getElementById('authCloseBtn');
+    const authLogoutBtn = document.getElementById('authLogoutBtn');
 
     themeButtons = Array.from(document.querySelectorAll('.theme-option[data-theme-option]'));
     let storedTheme = null;
@@ -2680,6 +2725,169 @@
       document.body.classList.remove('no-scroll');
     }
 
+    // Auth helpers
+    function refreshAuthStatusText() {
+      if (!authStatusText) return;
+      if (authUser?.email) {
+        setText(authStatusText, t('authSignedIn', { email: authUser.email }));
+      } else {
+        setText(authStatusText, t('authSignedOut'));
+      }
+    }
+    function updateAuthLogoutVisibility() {
+      if (!authLogoutBtn) return;
+      if (authUser) {
+        authLogoutBtn.removeAttribute('hidden');
+      } else {
+        authLogoutBtn.setAttribute('hidden', '');
+      }
+    }
+    function showAuthFeedback(message, intent) {
+      if (!authMessage) return;
+      authMessage.textContent = message || '';
+      authMessage.classList.remove('error', 'success');
+      if (intent === 'error') authMessage.classList.add('error');
+      if (intent === 'success') authMessage.classList.add('success');
+    }
+    function clearAuthMessage() {
+      if (!authMessage) return;
+      authMessage.textContent = '';
+      authMessage.classList.remove('error', 'success');
+    }
+    function setAuthBusy(isBusy) {
+      [authEmailInput, authPasswordInput, authLoginBtn, authRegisterBtn, authLogoutBtn].forEach((node) => {
+        if (!node) return;
+        node.disabled = !!isBusy;
+      });
+    }
+    function persistAuthEmail(email) {
+      if (!email) return;
+      try { localStorage.setItem(LAST_AUTH_EMAIL_KEY, email); } catch {}
+    }
+    function hydrateStoredAuthEmail() {
+      if (!authEmailInput) return;
+      if (authEmailInput.value) return;
+      try {
+        const stored = localStorage.getItem(LAST_AUTH_EMAIL_KEY);
+        if (stored) authEmailInput.value = stored;
+      } catch {}
+    }
+    function syncAuthUser(user) {
+      authUser = user || null;
+      try { window.currentUser = authUser ? { id: authUser.id, email: authUser.email || '' } : null; } catch {}
+      if (authUser?.email && authEmailInput && document.activeElement !== authEmailInput) {
+        authEmailInput.value = authUser.email;
+      }
+      if (!authUser) hydrateStoredAuthEmail();
+      if (authPasswordInput) authPasswordInput.value = '';
+      refreshAuthStatusText();
+      updateAuthLogoutVisibility();
+    }
+    function openAuthModal() {
+      if (!authModal) return;
+      closeShareModal();
+      closeSettingsModal();
+      closeFriendsModal();
+      hydrateStoredAuthEmail();
+      clearAuthMessage();
+      refreshAuthStatusText();
+      authModal.classList.remove('hidden');
+      document.body.classList.add('no-scroll');
+      requestAnimationFrame(() => {
+        if (authUser && authLogoutBtn) {
+          if (authPasswordInput) authPasswordInput.focus();
+        } else if (authEmailInput) {
+          authEmailInput.focus();
+        }
+      });
+    }
+    function closeAuthModal() {
+      if (!authModal) return;
+      authModal.classList.add('hidden');
+      document.body.classList.remove('no-scroll');
+      clearAuthMessage();
+    }
+    function ensureAuthReady() {
+      if (supabaseClient) return true;
+      showAuthFeedback(t('authUnavailable'), 'error');
+      return false;
+    }
+    async function handleAuthSubmit(mode) {
+      if (!ensureAuthReady()) return;
+      const email = (authEmailInput?.value || '').trim();
+      const password = (authPasswordInput?.value || '').trim();
+      if (!email || !password) {
+        showAuthFeedback(t('authMissingFields'), 'error');
+        return;
+      }
+      persistAuthEmail(email);
+      clearAuthMessage();
+      setAuthBusy(true);
+      try {
+        if (mode === 'login') {
+          const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          showAuthFeedback(t('authLoginSuccess'), 'success');
+        } else {
+          const { data, error } = await supabaseClient.auth.signUp({ email, password });
+          if (error) throw error;
+          const confirmed = !!data?.user?.confirmed_at;
+          showAuthFeedback(confirmed ? t('authRegisterSuccess') : t('authCheckEmail'), 'success');
+        }
+      } catch (err) {
+        const msg = (err && err.message) ? err.message : t('authUnknownError');
+        showAuthFeedback(msg, 'error');
+      } finally {
+        setAuthBusy(false);
+      }
+    }
+    async function handleAuthLogout() {
+      clearAuthMessage();
+      if (!ensureAuthReady()) {
+        syncAuthUser(null);
+        return;
+      }
+      setAuthBusy(true);
+      try {
+        const { error } = await supabaseClient.auth.signOut();
+        if (error) throw error;
+        syncAuthUser(null);
+        showAuthFeedback(t('authLoggedOut'), 'success');
+      } catch (err) {
+        const msg = (err && err.message) ? err.message : t('authUnknownError');
+        showAuthFeedback(msg, 'error');
+      } finally {
+        setAuthBusy(false);
+      }
+    }
+    function initAuth() {
+      hydrateStoredAuthEmail();
+      refreshAuthStatusText();
+      updateAuthLogoutVisibility();
+      if (!authModal) return;
+      if (!supabaseClient) {
+        setAuthBusy(true);
+        showAuthFeedback(t('authUnavailable'), 'error');
+        return;
+      }
+      setAuthBusy(false);
+      supabaseClient.auth.getSession()
+        .then(({ data }) => {
+          syncAuthUser(data?.session?.user || null);
+        })
+        .catch((err) => console.warn('auth session fetch failed', err));
+      try {
+        const { data } = supabaseClient.auth.onAuthStateChange((_event, session) => {
+          syncAuthUser(session?.user || null);
+        });
+        if (data?.subscription) {
+          window.__authSubscription = data.subscription;
+        }
+      } catch (err) {
+        console.error('auth state listener failed', err);
+      }
+    }
+
     function hideFriendIdError() {
       if (friendIdError) friendIdError.hidden = true;
     }
@@ -2782,8 +2990,13 @@
 
     settingsBtn?.addEventListener('click', openSettingsModal);
     friendsBtn?.addEventListener('click', openFriendsModal);
+    accountBtn?.addEventListener('click', openAuthModal);
     closeSettingsBtn?.addEventListener('click', closeSettingsModal);
     closeFriendsBtn?.addEventListener('click', closeFriendsModal);
+    authCloseBtn?.addEventListener('click', closeAuthModal);
+    authLoginBtn?.addEventListener('click', () => handleAuthSubmit('login'));
+    authRegisterBtn?.addEventListener('click', () => handleAuthSubmit('register'));
+    authLogoutBtn?.addEventListener('click', handleAuthLogout);
     exerciseSelect?.addEventListener('change', (e) => {
       currentExerciseId = e.target.value || null;
     });
@@ -2805,6 +3018,7 @@
         if (!shareModal?.classList.contains('hidden')) { closeShareModal(); return; }
         if (!friendsModal?.classList.contains('hidden')) { closeFriendsModal(); return; }
         if (!settingsModal?.classList.contains('hidden')) { closeSettingsModal(); return; }
+        if (!authModal?.classList.contains('hidden')) { closeAuthModal(); return; }
         // Close Add/Edit if open
         const addEditOpen = el.modal && !el.modal.hidden;
         if (addEditOpen) { closeAddEditModal(); return; }
@@ -2815,6 +3029,9 @@
     });
     friendsModal?.addEventListener('click', (e) => {
       if (e.target === friendsModal) closeFriendsModal();
+    });
+    authModal?.addEventListener('click', (e) => {
+      if (e.target === authModal) closeAuthModal();
     });
     // Close Add/Edit when tapping overlay (not inside panel)
     el.modal?.addEventListener('click', (e) => {
@@ -2838,6 +3055,8 @@
         }
       });
     }
+
+    initAuth();
 
     const handleSoloProgram = () => {
       const list = loadExercises() || [];

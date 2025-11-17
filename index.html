@@ -109,9 +109,11 @@
         <input type="password" id="authPassword" autocomplete="current-password" placeholder="••••••••" />
       </div>
       <p id="authMessage" class="auth-message" aria-live="polite"></p>
+      <p class="help-text" data-i18n="authResendHint">No email yet? Check spam and resend.</p>
       <div class="modal-actions">
         <button id="authLoginBtn" class="primary btn-block" data-i18n="logIn">Log In</button>
         <button id="authRegisterBtn" class="btn-block" data-i18n="register">Register</button>
+        <button id="authResendBtn" class="btn-block" data-i18n="authResend">Resend confirmation email</button>
       </div>
       <div class="modal-actions single">
         <button id="authLogoutBtn" class="btn wfull" data-i18n="logOut" hidden>Log Out</button>
@@ -181,6 +183,11 @@
             <div class="row">
               <label for="lbKey" class="label" data-i18n="supabaseKey">Supabase Key (anon)</label>
               <input id="lbKey" type="text" placeholder="eyJhbGci...">
+            </div>
+            <div class="row">
+              <label for="lbRedirect" class="label" data-i18n="supabaseRedirect">Confirmation redirect URL</label>
+              <input id="lbRedirect" type="url" placeholder="https://your-site.com/auth">
+              <small class="help-text" data-i18n="supabaseRedirectHint">Used for Supabase emails. Add this URL to your allowed redirects.</small>
             </div>
             <div class="row">
               <button id="saveLbCfgBtn" class="btn wfull" data-i18n="saveLb">Save Leaderboard Settings</button>

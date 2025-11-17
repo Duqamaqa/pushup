@@ -38,6 +38,7 @@
   const SUPABASE_URL = 'https://ztmhypducvrqpgkbfftl.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0bWh5cGR1Y3ZycXBna2JmZnRsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMyODU2NzYsImV4cCI6MjA3ODg2MTY3Nn0.OZrziouM6_cS1ij3JU2KicaM7xBT1l2ynV_anI8asLg';
   const LB_ID_KEY = 'lbId';
+  const LB_REDIRECT_KEY = 'lbRedirectUrl';
   const LAST_AUTH_EMAIL_KEY = 'authLastEmail';
   const EX_TEMPLATES = [
     { name:'Push-ups', unit:'reps', daily:50, steps:[10,20] },
@@ -194,6 +195,7 @@
       settingsIntro:'⚙️ Customize your app here. Use <b>Global</b> for app-wide settings, and <b>Per Exercise</b> for individual exercise details.',
       exportJson:'Export JSON', importJson:'Import JSON', hardRefresh:'Hard Refresh (update)',
       leaderboardId:'Your ID', supabaseUrl:'Supabase URL', supabaseKey:'Supabase Key (anon)',
+      supabaseRedirect:'Confirmation redirect URL', supabaseRedirectHint:'Used by Supabase emails. Add this to your allowed redirect list.',
       saveLb:'Save Leaderboard Settings', openLb:'Friend Leaderboard', addNew:'+ Add New Exercise',
       showWeeklyNow:'Show Weekly Summary', toggleDebugPanel:'Toggle Debug Panel',
       themeLabel:'Theme', themeLight:'Light', themeDark:'Dark', themeQuest:'Quest',
@@ -217,6 +219,8 @@
       authRegisterSuccess:'Account created.', authCheckEmail:'Check your email to confirm your account.',
       authUnknownError:'Something went wrong. Please try again.', authUnavailable:'Authentication is unavailable right now.',
       authLoggedOut:'Signed out successfully.', authConfigUpdated:'Supabase settings updated. Please sign in again.',
+      authEnterEmail:'Enter your email before resending.', authResend:'Resend confirmation email',
+      authResendHint:'No email yet? Check spam and resend.', authResendSent:'Sent another confirmation email.',
       doneMsg:'Great job! ✅', daily:'Daily', done:'Done', left:'Left', over:'over',
       addExtraPh:'Add extra...', addExtraBtn:'+ Add', thisWeek:'This week: {done} / {goal}', fallbackExercise:'Exercise',
       q1:'Small steps add up. Keep going.', q2:'Form first, speed second.', q3:'Consistency beats intensity.', q4:'Hydrate and breathe between sets.', q5:'Perfect is the enemy of done.', q6:'You only improve what you track.', q7:'A little today beats a lot someday.', q8:'Warm up. Cool down. Recover well.', q9:'Focus on quality reps.', q10:'Set the next micro‑goal now.', q11:'Show up, even for five minutes.', q12:'Don’t break the chain today.', q13:'Your future self thanks you.', q14:'Make it easy to start.', q15:'Celebrate small wins.', q16:'Just one more small push.', q17:'Start light and progress steadily.', q18:'Stack habits: pair with a routine.',
@@ -255,6 +259,7 @@
       settingsIntro:'⚙️ Passe die App hier an. <b>Global</b> für appweite Einstellungen, <b>Pro Übung</b> für Details je Übung.',
       exportJson:'JSON exportieren', importJson:'JSON importieren', hardRefresh:'Hartes Aktualisieren (Update)',
       leaderboardId:'Deine ID', supabaseUrl:'Supabase‑URL', supabaseKey:'Supabase‑Schlüssel (anon)',
+      supabaseRedirect:'Bestätigungs-Redirect-URL', supabaseRedirectHint:'Für Supabase-E-Mails. Diese URL zu den erlaubten Weiterleitungen hinzufügen.',
       saveLb:'Ranglisten‑Einstellungen speichern', openLb:'Freundes‑Rangliste', addNew:'+ Neue Übung hinzufügen',
       showWeeklyNow:'Wöchentliche Übersicht zeigen', toggleDebugPanel:'Debug‑Panel umschalten',
       themeLabel:'Thema', themeLight:'Hell', themeDark:'Dunkel', themeQuest:'Quest',
@@ -278,6 +283,8 @@
       authRegisterSuccess:'Konto erstellt.', authCheckEmail:'Prüfe deine E-Mail zur Bestätigung.',
       authUnknownError:'Etwas ist schiefgelaufen. Bitte erneut versuchen.', authUnavailable:'Anmeldung ist derzeit nicht verfügbar.',
       authLoggedOut:'Erfolgreich abgemeldet.', authConfigUpdated:'Supabase-Einstellungen aktualisiert. Bitte erneut anmelden.',
+      authEnterEmail:'Bitte zuerst deine E-Mail eingeben.', authResend:'Bestätigung erneut senden',
+      authResendHint:'Noch keine Mail? Spam-Ordner prüfen und erneut senden.', authResendSent:'Bestätigungs-E-Mail erneut verschickt.',
       doneMsg:'Gute Arbeit! ✅', daily:'Täglich', done:'Erledigt', left:'Übrig', over:'darüber',
       addExtraPh:'Extra hinzufügen…', addExtraBtn:'+ Hinzufügen', thisWeek:'Diese Woche: {done} / {goal}', fallbackExercise:'Übung',
       q1:'Kleine Schritte summieren sich. Weiter so.', q2:'Form vor Tempo.', q3:'Konstanz schlägt Intensität.', q4:'Trinke und atme zwischen den Sätzen.', q5:'Perfekt ist der Feind des Guten.', q6:'Du verbesserst nur, was du misst.', q7:'Ein bisschen heute schlägt viel irgendwann.', q8:'Aufwärmen. Abkühlen. Gut erholen.', q9:'Fokus auf saubere Wiederholungen.', q10:'Setze jetzt das nächste Mikroziel.', q11:'Erscheine – auch nur fünf Minuten.', q12:'Unterbrich die Kette heute nicht.', q13:'Dein Zukunfts‑Ich dankt dir.', q14:'Mach den Start einfach.', q15:'Feiere kleine Erfolge.', q16:'Nur noch ein kleiner Schub.', q17:'Leicht beginnen, stetig steigern.', q18:'Gewohnheiten stapeln: mit Routine koppeln.',
@@ -314,6 +321,7 @@
       settingsIntro:'⚙️ Настройте приложение здесь. <b>Глобальные</b> — для всего приложения, <b>По упражнению</b> — для отдельных упражнений.',
       exportJson:'Экспорт JSON', importJson:'Импорт JSON', hardRefresh:'Жёсткое обновление (обновить)',
       leaderboardId:'Твой ID', supabaseUrl:'Supabase URL', supabaseKey:'Ключ Supabase (anon)',
+      supabaseRedirect:'URL перенаправления подтверждения', supabaseRedirectHint:'Используется в письмах Supabase. Добавьте URL в список разрешённых перенаправлений.',
       saveLb:'Сохранить настройки таблицы', openLb:'Таблица друзей', addNew:'+ Добавить упражнение',
       showWeeklyNow:'Показать недельную сводку', toggleDebugPanel:'Переключить панель отладки',
       themeLabel:'Тема', themeLight:'Светлая', themeDark:'Тёмная', themeQuest:'Квест',
@@ -337,6 +345,8 @@
       authRegisterSuccess:'Аккаунт создан.', authCheckEmail:'Проверьте почту, чтобы подтвердить аккаунт.',
       authUnknownError:'Что-то пошло не так. Попробуйте ещё раз.', authUnavailable:'Авторизация сейчас недоступна.',
       authLoggedOut:'Вы вышли из аккаунта.', authConfigUpdated:'Настройки Supabase обновлены. Войдите снова.',
+      authEnterEmail:'Сначала введите e-mail.', authResend:'Отправить письмо ещё раз',
+      authResendHint:'Нет письма? Проверьте спам и отправьте повторно.', authResendSent:'Письмо отправлено повторно.',
       doneMsg:'Отличная работа! ✅', daily:'Дневная', done:'Сделано', left:'Осталось', over:'сверх',
       addExtraPh:'Добавить ещё…', addExtraBtn:'+ Добавить', thisWeek:'На этой неделе: {done} / {goal}', fallbackExercise:'Упражнение',
       q1:'Маленькие шаги складываются. Продолжайте.', q2:'Техника прежде скорости.', q3:'Постоянство важнее интенсивности.', q4:'Пейте воду и дышите между подходами.', q5:'Идеальное — враг сделанного.', q6:'Улучшаешь то, что отслеживаешь.', q7:'Немного сегодня лучше, чем много когда‑нибудь.', q8:'Разминайтесь. Заминка. Восстановление.', q9:'Фокус на качестве повторов.', q10:'Поставьте следующее микро‑цель сейчас.', q11:'Появись, даже на пять минут.', q12:'Не прерывай цепочку сегодня.', q13:'Будущий ты скажет спасибо.', q14:'Сделай старт простым.', q15:'Празднуй маленькие победы.', q16:'Ещё одно маленькое усилие.', q17:'Начинай легко и прогрессируй.', q18:'Связывай привычки с рутиной.',
@@ -1307,11 +1317,12 @@
     try {
       const url = (localStorage.getItem('lbUrl') || fallbackUrl).trim();
       const key = (localStorage.getItem('lbKey') || fallbackKey).trim();
+      const redirect = (localStorage.getItem(LB_REDIRECT_KEY) || '').trim();
       const friendRaw = localStorage.getItem('lbFriends') || '';
       const friendIds = normalizeFriendIds(friendRaw, id);
-      return { id, url, key, friendRaw, friendIds };
+      return { id, url, key, redirect, friendRaw, friendIds };
     } catch {
-      return { id, url: fallbackUrl, key: fallbackKey, friendRaw:'', friendIds:[] };
+      return { id, url: fallbackUrl, key: fallbackKey, redirect: '', friendRaw:'', friendIds:[] };
     }
   }
   function supaConfigured() {
@@ -1323,6 +1334,12 @@
     syncAuthUser(null);
     connectAuthClient();
     showToast(t('authConfigUpdated'));
+  }
+  function getSupabaseAuthOptions() {
+    const cfg = getLbConfig();
+    const redirect = (cfg?.redirect || '').trim();
+    if (!redirect) return undefined;
+    return { emailRedirectTo: redirect };
   }
   function computeWeeklyTotalAll() {
     const items = loadExercises() || [];
@@ -2577,6 +2594,7 @@
     const lbFriends = document.getElementById('lbFriends');
     const lbUrl = document.getElementById('lbUrl');
     const lbKey = document.getElementById('lbKey');
+    const lbRedirect = document.getElementById('lbRedirect');
     const saveLbCfgBtn = document.getElementById('saveLbCfgBtn');
     const openLeaderboardBtn = document.getElementById('openLeaderboardBtn');
     const forceReloadBtn = document.getElementById('forceReloadBtn');
@@ -2611,6 +2629,7 @@
     const authMessage = document.getElementById('authMessage');
     const authLoginBtn = document.getElementById('authLoginBtn');
     const authRegisterBtn = document.getElementById('authRegisterBtn');
+    const authResendBtn = document.getElementById('authResendBtn');
     const authCloseBtn = document.getElementById('authCloseBtn');
     const authLogoutBtn = document.getElementById('authLogoutBtn');
 
@@ -2902,6 +2921,7 @@
         if (lbFriends) lbFriends.value = cfg.friendRaw || '';
         if (lbUrl) lbUrl.value = cfg.url || '';
         if (lbKey) lbKey.value = cfg.key || '';
+        if (lbRedirect) lbRedirect.value = cfg.redirect || '';
         if (openLeaderboardBtn) openLeaderboardBtn.style.display = (cfg.url && cfg.key && cfg.id) ? '' : 'none';
       } catch {}
       m.classList.remove('hidden');
@@ -2985,7 +3005,7 @@
       authMessage.classList.remove('error', 'success');
     }
     function setAuthBusy(isBusy) {
-      [authEmailInput, authPasswordInput, authLoginBtn, authRegisterBtn, authLogoutBtn].forEach((node) => {
+      [authEmailInput, authPasswordInput, authLoginBtn, authRegisterBtn, authLogoutBtn, authResendBtn].forEach((node) => {
         if (!node) return;
         node.disabled = !!isBusy;
       });
@@ -3066,11 +3086,33 @@
           if (error) throw error;
           showAuthFeedback(t('authLoginSuccess'), 'success');
         } else {
-          const { data, error } = await supabaseClient.auth.signUp({ email, password });
+          const options = getSupabaseAuthOptions();
+          const { data, error } = await supabaseClient.auth.signUp({ email, password, options });
           if (error) throw error;
           const confirmed = !!data?.user?.confirmed_at;
           showAuthFeedback(confirmed ? t('authRegisterSuccess') : t('authCheckEmail'), 'success');
         }
+      } catch (err) {
+        const msg = (err && err.message) ? err.message : t('authUnknownError');
+        showAuthFeedback(msg, 'error');
+      } finally {
+        setAuthBusy(false);
+      }
+    }
+    async function handleAuthResend() {
+      const email = (authEmailInput?.value || '').trim();
+      if (!email) {
+        showAuthFeedback(t('authEnterEmail'), 'error');
+        return;
+      }
+      if (!ensureAuthReady()) return;
+      clearAuthMessage();
+      setAuthBusy(true);
+      try {
+        const options = getSupabaseAuthOptions();
+        const { error } = await supabaseClient.auth.resend({ type: 'signup', email, options });
+        if (error) throw error;
+        showAuthFeedback(t('authResendSent'), 'success');
       } catch (err) {
         const msg = (err && err.message) ? err.message : t('authUnknownError');
         showAuthFeedback(msg, 'error');
@@ -3243,6 +3285,7 @@
     authCloseBtn?.addEventListener('click', closeAuthModal);
     authLoginBtn?.addEventListener('click', () => handleAuthSubmit('login'));
     authRegisterBtn?.addEventListener('click', () => handleAuthSubmit('register'));
+    authResendBtn?.addEventListener('click', handleAuthResend);
     authLogoutBtn?.addEventListener('click', handleAuthLogout);
     exerciseSelect?.addEventListener('change', (e) => {
       currentExerciseId = e.target.value || null;
@@ -3578,13 +3621,21 @@
       const friendsRaw = (lbFriends?.value || '').trim();
       const url = (lbUrl?.value || '').trim();
       const key = (lbKey?.value || '').trim();
+      const redirectInput = (lbRedirect?.value || '').trim();
+      const redirect = redirectInput;
       const prevHash = supabaseConfigHash;
       try {
         localStorage.setItem('lbFriends', friendsRaw);
         localStorage.setItem('lbUrl', url);
         localStorage.setItem('lbKey', key);
+        if (redirect) {
+          localStorage.setItem(LB_REDIRECT_KEY, redirect);
+        } else {
+          localStorage.removeItem(LB_REDIRECT_KEY);
+        }
         if (lbIdField) lbIdField.value = id || '';
         if (openLeaderboardBtn) openLeaderboardBtn.style.display = (id && url && key) ? '' : 'none';
+        if (lbRedirect && lbRedirect.value !== redirect) lbRedirect.value = redirect || '';
         reconcileFriendEntries(friendsRaw, id);
         if (friendsModal && !friendsModal.classList.contains('hidden')) {
           renderFriendsList();

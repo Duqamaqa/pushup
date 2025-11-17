@@ -219,6 +219,11 @@ input:focus {
   color: #ef4444;
   font-size: 12px;
 }
+.help-text {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
 
 .auth-status {
   margin: 0 0 8px;

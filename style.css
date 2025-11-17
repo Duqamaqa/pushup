@@ -261,6 +261,20 @@ button.primary {
   box-shadow: 0 6px 14px rgba(37, 99, 235, 0.25);
 }
 
+.avatar-btn {
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  padding: 0;
+  font-size: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 button.primary:active {
   filter: brightness(0.95);
 }

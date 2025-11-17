@@ -81,6 +81,14 @@
   }
   let authUser = null;
   try { window.currentUser = null; } catch {}
+  const REMOTE_TABLE = 'user_payloads';
+  const REMOTE_PAYLOAD_VERSION = 1;
+  const REMOTE_SYNC_DELAY = 1500;
+  let remoteSyncTimer = null;
+  let remoteHydrationPromise = null;
+  let remoteApplyingPayload = false;
+  let remoteLastSnapshot = '';
+  let remoteHydratedUserId = null;
 
   function dailyQuote(seedStr) { // stable per day
     const s = (String(seedStr || '') + todayStrUTC())
@@ -521,6 +529,162 @@
       try { updateStorageSize(); } catch {}
     } catch (e) {
       console.error('Failed to save exercises:', e);
+    }
+    scheduleRemoteSync('exercises');
+  }
+
+  function safeStringify(value) {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return '';
+    }
+  }
+
+  function shouldSyncRemote() {
+    return !!(supabaseClient && authUser?.id);
+  }
+
+  function scheduleRemoteSync() {
+    if (!shouldSyncRemote() || remoteApplyingPayload) return;
+    if (remoteSyncTimer) clearTimeout(remoteSyncTimer);
+    remoteSyncTimer = setTimeout(() => {
+      remoteSyncTimer = null;
+      pushRemoteState().catch((err) => console.warn('remote sync failed', err));
+    }, REMOTE_SYNC_DELAY);
+  }
+
+  function snapshotLocalStateForRemote(overrides) {
+    const exercises = Array.isArray(overrides?.exercises) ? overrides.exercises : (loadExercises() || []);
+    const friends = Array.isArray(overrides?.friends) ? overrides.friends : readFriendEntries();
+    return {
+      version: REMOTE_PAYLOAD_VERSION,
+      updatedAt: new Date().toISOString(),
+      exercises,
+      friends,
+    };
+  }
+
+  async function pushRemoteState() {
+    if (!shouldSyncRemote()) return;
+    const payload = snapshotLocalStateForRemote();
+    const serialized = safeStringify(payload);
+    if (!serialized || serialized === remoteLastSnapshot) return;
+    try {
+      const { error } = await supabaseClient
+        .from(REMOTE_TABLE)
+        .upsert({
+          user_id: authUser.id,
+          payload,
+          updated_at: payload.updatedAt,
+        }, { onConflict: 'user_id' });
+      if (error) throw error;
+      remoteLastSnapshot = serialized;
+    } catch (err) {
+      console.error('pushRemoteState failed', err);
+      throw err;
+    }
+  }
+
+  function mergeExercises(remoteList, localList) {
+    const map = new Map();
+    (Array.isArray(localList) ? localList : []).forEach((item) => {
+      if (item?.id) map.set(item.id, item);
+    });
+    (Array.isArray(remoteList) ? remoteList : []).forEach((item) => {
+      if (item?.id) map.set(item.id, item);
+    });
+    return Array.from(map.values());
+  }
+
+  function sanitizeFriendEntry(entry) {
+    if (!entry) return null;
+    const id = String(entry.id || '').trim();
+    if (!/^\d{6}$/.test(id)) return null;
+    return {
+      id,
+      name: String(entry.name || '').trim(),
+    };
+  }
+
+  function mergeFriendEntries(remoteList, localList) {
+    const map = new Map();
+    (Array.isArray(localList) ? localList : []).forEach((entry) => {
+      const sanitized = sanitizeFriendEntry(entry);
+      if (sanitized) map.set(sanitized.id, sanitized);
+    });
+    (Array.isArray(remoteList) ? remoteList : []).forEach((entry) => {
+      const sanitized = sanitizeFriendEntry(entry);
+      if (sanitized) map.set(sanitized.id, sanitized);
+    });
+    return Array.from(map.values());
+  }
+
+  function applyRemotePayload(payload) {
+    if (!payload || typeof payload !== 'object') return;
+    const remoteExercises = Array.isArray(payload.exercises) ? payload.exercises : [];
+    const remoteFriends = Array.isArray(payload.friends) ? payload.friends : [];
+    const mergedExercises = mergeExercises(remoteExercises, loadExercises() || []);
+    const mergedFriends = mergeFriendEntries(remoteFriends, readFriendEntries());
+    remoteApplyingPayload = true;
+    try {
+      saveExercises(mergedExercises);
+      writeFriendEntries(mergedFriends);
+      syncFriendIdsToSettings(mergedFriends);
+    } finally {
+      remoteApplyingPayload = false;
+    }
+    try { renderDashboard(); } catch {}
+    try { renderFriendsList(); } catch {}
+    pushRemoteState().catch((err) => console.warn('post-hydrate sync failed', err));
+  }
+
+  async function hydrateRemoteState() {
+    if (!shouldSyncRemote()) return false;
+    const userId = authUser.id;
+    try {
+      const { data, error } = await supabaseClient
+        .from(REMOTE_TABLE)
+        .select('payload, updated_at')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (error && error.code !== 'PGRST116') throw error;
+      if (!shouldSyncRemote() || authUser.id !== userId) return false;
+      if (data?.payload) {
+        applyRemotePayload(data.payload);
+      } else {
+        await pushRemoteState();
+      }
+      return true;
+    } catch (err) {
+      console.error('hydrateRemoteState failed', err);
+      return false;
+    }
+  }
+
+  function requestRemoteHydration(force = false) {
+    if (!shouldSyncRemote()) return;
+    if (!force && remoteHydratedUserId === authUser.id) return;
+    if (remoteHydrationPromise) return;
+    remoteHydrationPromise = hydrateRemoteState()
+      .then((success) => {
+        if (success && shouldSyncRemote()) {
+          remoteHydratedUserId = authUser.id;
+        }
+      })
+      .finally(() => {
+        remoteHydrationPromise = null;
+      });
+  }
+
+  function resetRemoteSyncState() {
+    remoteHydratedUserId = null;
+    remoteLastSnapshot = '';
+    remoteApplyingPayload = false;
+    remoteHydrationPromise = null;
+    if (remoteSyncTimer) {
+      clearTimeout(remoteSyncTimer);
+      remoteSyncTimer = null;
     }
   }
 
@@ -1082,6 +1246,7 @@
   }
   function writeFriendEntries(list) {
     try { localStorage.setItem(FRIENDS_LIST_KEY, JSON.stringify(list)); } catch {}
+    scheduleRemoteSync('friends');
   }
   function seedFriendEntriesFromRaw() {
     let raw = '';
@@ -2358,6 +2523,8 @@
     const settingsBtn = $('#settingsBtn');
     const friendsBtn = $('#friendsBtn');
     const accountBtn = $('#accountBtn');
+    const accountAvatarBtn = document.getElementById('accountAvatarBtn');
+    const accountAvatarInitial = document.getElementById('accountAvatarInitial');
     const settingsModal = $('#settingsModal');
     const closeSettingsBtn = $('#closeSettingsBtn');
     const exportBtn = $('#exportBtn');
@@ -2742,6 +2909,27 @@
         authLogoutBtn.setAttribute('hidden', '');
       }
     }
+    function getEmailInitial(email) {
+      if (!email) return '?';
+      const local = email.split('@')[0] || email;
+      const match = local.match(/[a-z0-9]/i);
+      return match ? match[0].toUpperCase() : '?';
+    }
+    function updateAccountButtonState() {
+      const hasUser = !!authUser;
+      if (hasUser) {
+        accountBtn?.setAttribute('hidden', '');
+        if (accountAvatarBtn) {
+          accountAvatarBtn.removeAttribute('hidden');
+          if (accountAvatarInitial) {
+            accountAvatarInitial.textContent = getEmailInitial(authUser?.email || '');
+          }
+        }
+      } else {
+        accountBtn?.removeAttribute('hidden');
+        accountAvatarBtn?.setAttribute('hidden', '');
+      }
+    }
     function showAuthFeedback(message, intent) {
       if (!authMessage) return;
       authMessage.textContent = message || '';
@@ -2782,6 +2970,12 @@
       if (authPasswordInput) authPasswordInput.value = '';
       refreshAuthStatusText();
       updateAuthLogoutVisibility();
+      updateAccountButtonState();
+      if (authUser) {
+        requestRemoteHydration();
+      } else {
+        resetRemoteSyncState();
+      }
     }
     function openAuthModal() {
       if (!authModal) return;
@@ -2864,6 +3058,7 @@
       hydrateStoredAuthEmail();
       refreshAuthStatusText();
       updateAuthLogoutVisibility();
+      updateAccountButtonState();
       if (!authModal) return;
       if (!supabaseClient) {
         setAuthBusy(true);
@@ -2991,6 +3186,7 @@
     settingsBtn?.addEventListener('click', openSettingsModal);
     friendsBtn?.addEventListener('click', openFriendsModal);
     accountBtn?.addEventListener('click', openAuthModal);
+    accountAvatarBtn?.addEventListener('click', openAuthModal);
     closeSettingsBtn?.addEventListener('click', closeSettingsModal);
     closeFriendsBtn?.addEventListener('click', closeFriendsModal);
     authCloseBtn?.addEventListener('click', closeAuthModal);

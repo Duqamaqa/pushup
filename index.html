@@ -14,7 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <meta name="theme-color" content="#111111" />
   <script src="commit.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" crossorigin="anonymous" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -29,6 +29,9 @@
         </button>
         <button id="friendsBtn" class="header-pill" data-i18n="friends" data-i18n-aria-label="friends" aria-label="Friends">Friends</button>
         <button id="accountBtn" class="header-pill" data-i18n="account" data-i18n-aria-label="account" aria-label="Account">Account</button>
+        <button id="accountAvatarBtn" class="header-pill avatar-btn" aria-label="Account" hidden>
+          <span id="accountAvatarInitial" aria-hidden="true">A</span>
+        </button>
       </div>
     </div>
     <div id="questSoloLabel" class="quest-solo-label" hidden>

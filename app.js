@@ -73,14 +73,50 @@
   const hasSupabaseClient = typeof window !== 'undefined'
     && window.supabase
     && typeof window.supabase.createClient === 'function';
-  const supabaseClient = hasSupabaseClient
-    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
-    : null;
-  if (supabaseClient) {
-    try { window.supabaseClient = supabaseClient; } catch {}
-  }
+  let supabaseClient = null;
+  let supabaseConfigHash = '';
   let authUser = null;
+  let authStateSubscription = null;
   try { window.currentUser = null; } catch {}
+
+  function computeSupabaseHash(url, key) {
+    return `${url || ''}::${key || ''}`;
+  }
+
+  function ensureSupabaseClient(force = false) {
+    if (!hasSupabaseClient) {
+      supabaseConfigHash = '';
+      supabaseClient = null;
+      try { window.supabaseClient = null; } catch {}
+      return null;
+    }
+    const cfg = getLbConfig();
+    const url = (cfg?.url || '').trim();
+    const key = (cfg?.key || '').trim();
+    const nextHash = computeSupabaseHash(url, key);
+    if (!force && supabaseClient && nextHash === supabaseConfigHash) {
+      return supabaseClient;
+    }
+    supabaseConfigHash = nextHash;
+    if (!url || !key) {
+      supabaseClient = null;
+      try { window.supabaseClient = null; } catch {}
+      return null;
+    }
+    supabaseClient = window.supabase.createClient(url, key);
+    try { window.supabaseClient = supabaseClient; } catch {}
+    return supabaseClient;
+  }
+
+  function cleanupAuthSubscription() {
+    if (authStateSubscription && typeof authStateSubscription.unsubscribe === 'function') {
+      try { authStateSubscription.unsubscribe(); } catch {}
+    }
+    authStateSubscription = null;
+    try { window.__authSubscription = null; } catch {}
+  }
+
+  ensureSupabaseClient(true);
   const REMOTE_TABLE = 'user_payloads';
   const REMOTE_PAYLOAD_VERSION = 1;
   const REMOTE_SYNC_DELAY = 1500;
@@ -180,7 +216,7 @@
       authMissingFields:'Enter both email and password.', authLoginSuccess:'Welcome back!',
       authRegisterSuccess:'Account created.', authCheckEmail:'Check your email to confirm your account.',
       authUnknownError:'Something went wrong. Please try again.', authUnavailable:'Authentication is unavailable right now.',
-      authLoggedOut:'Signed out successfully.',
+      authLoggedOut:'Signed out successfully.', authConfigUpdated:'Supabase settings updated. Please sign in again.',
       doneMsg:'Great job! ✅', daily:'Daily', done:'Done', left:'Left', over:'over',
       addExtraPh:'Add extra...', addExtraBtn:'+ Add', thisWeek:'This week: {done} / {goal}', fallbackExercise:'Exercise',
       q1:'Small steps add up. Keep going.', q2:'Form first, speed second.', q3:'Consistency beats intensity.', q4:'Hydrate and breathe between sets.', q5:'Perfect is the enemy of done.', q6:'You only improve what you track.', q7:'A little today beats a lot someday.', q8:'Warm up. Cool down. Recover well.', q9:'Focus on quality reps.', q10:'Set the next micro‑goal now.', q11:'Show up, even for five minutes.', q12:'Don’t break the chain today.', q13:'Your future self thanks you.', q14:'Make it easy to start.', q15:'Celebrate small wins.', q16:'Just one more small push.', q17:'Start light and progress steadily.', q18:'Stack habits: pair with a routine.',
@@ -241,7 +277,7 @@
       authMissingFields:'Bitte E-Mail und Passwort eingeben.', authLoginSuccess:'Willkommen zurück!',
       authRegisterSuccess:'Konto erstellt.', authCheckEmail:'Prüfe deine E-Mail zur Bestätigung.',
       authUnknownError:'Etwas ist schiefgelaufen. Bitte erneut versuchen.', authUnavailable:'Anmeldung ist derzeit nicht verfügbar.',
-      authLoggedOut:'Erfolgreich abgemeldet.',
+      authLoggedOut:'Erfolgreich abgemeldet.', authConfigUpdated:'Supabase-Einstellungen aktualisiert. Bitte erneut anmelden.',
       doneMsg:'Gute Arbeit! ✅', daily:'Täglich', done:'Erledigt', left:'Übrig', over:'darüber',
       addExtraPh:'Extra hinzufügen…', addExtraBtn:'+ Hinzufügen', thisWeek:'Diese Woche: {done} / {goal}', fallbackExercise:'Übung',
       q1:'Kleine Schritte summieren sich. Weiter so.', q2:'Form vor Tempo.', q3:'Konstanz schlägt Intensität.', q4:'Trinke und atme zwischen den Sätzen.', q5:'Perfekt ist der Feind des Guten.', q6:'Du verbesserst nur, was du misst.', q7:'Ein bisschen heute schlägt viel irgendwann.', q8:'Aufwärmen. Abkühlen. Gut erholen.', q9:'Fokus auf saubere Wiederholungen.', q10:'Setze jetzt das nächste Mikroziel.', q11:'Erscheine – auch nur fünf Minuten.', q12:'Unterbrich die Kette heute nicht.', q13:'Dein Zukunfts‑Ich dankt dir.', q14:'Mach den Start einfach.', q15:'Feiere kleine Erfolge.', q16:'Nur noch ein kleiner Schub.', q17:'Leicht beginnen, stetig steigern.', q18:'Gewohnheiten stapeln: mit Routine koppeln.',
@@ -300,7 +336,7 @@
       authMissingFields:'Введите email и пароль.', authLoginSuccess:'С возвращением!',
       authRegisterSuccess:'Аккаунт создан.', authCheckEmail:'Проверьте почту, чтобы подтвердить аккаунт.',
       authUnknownError:'Что-то пошло не так. Попробуйте ещё раз.', authUnavailable:'Авторизация сейчас недоступна.',
-      authLoggedOut:'Вы вышли из аккаунта.',
+      authLoggedOut:'Вы вышли из аккаунта.', authConfigUpdated:'Настройки Supabase обновлены. Войдите снова.',
       doneMsg:'Отличная работа! ✅', daily:'Дневная', done:'Сделано', left:'Осталось', over:'сверх',
       addExtraPh:'Добавить ещё…', addExtraBtn:'+ Добавить', thisWeek:'На этой неделе: {done} / {goal}', fallbackExercise:'Упражнение',
       q1:'Маленькие шаги складываются. Продолжайте.', q2:'Техника прежде скорости.', q3:'Постоянство важнее интенсивности.', q4:'Пейте воду и дышите между подходами.', q5:'Идеальное — враг сделанного.', q6:'Улучшаешь то, что отслеживаешь.', q7:'Немного сегодня лучше, чем много когда‑нибудь.', q8:'Разминайтесь. Заминка. Восстановление.', q9:'Фокус на качестве повторов.', q10:'Поставьте следующее микро‑цель сейчас.', q11:'Появись, даже на пять минут.', q12:'Не прерывай цепочку сегодня.', q13:'Будущий ты скажет спасибо.', q14:'Сделай старт простым.', q15:'Празднуй маленькие победы.', q16:'Ещё одно маленькое усилие.', q17:'Начинай легко и прогрессируй.', q18:'Связывай привычки с рутиной.',
@@ -1281,6 +1317,12 @@
   function supaConfigured() {
     const { url, key, id } = getLbConfig();
     return !!(url && key && id);
+  }
+  function handleSupabaseConfigChange() {
+    ensureSupabaseClient(true);
+    syncAuthUser(null);
+    connectAuthClient();
+    showToast(t('authConfigUpdated'));
   }
   function computeWeeklyTotalAll() {
     const items = loadExercises() || [];
@@ -3002,6 +3044,7 @@
       clearAuthMessage();
     }
     function ensureAuthReady() {
+      ensureSupabaseClient();
       if (supabaseClient) return true;
       showAuthFeedback(t('authUnavailable'), 'error');
       return false;
@@ -3059,24 +3102,32 @@
       refreshAuthStatusText();
       updateAuthLogoutVisibility();
       updateAccountButtonState();
+      connectAuthClient();
+    }
+    function connectAuthClient() {
       if (!authModal) return;
-      if (!supabaseClient) {
+      cleanupAuthSubscription();
+      const client = ensureSupabaseClient();
+      if (!client) {
         setAuthBusy(true);
         showAuthFeedback(t('authUnavailable'), 'error');
         return;
       }
       setAuthBusy(false);
-      supabaseClient.auth.getSession()
+      client.auth.getSession()
         .then(({ data }) => {
           syncAuthUser(data?.session?.user || null);
         })
         .catch((err) => console.warn('auth session fetch failed', err));
       try {
-        const { data } = supabaseClient.auth.onAuthStateChange((_event, session) => {
+        const { data } = client.auth.onAuthStateChange((_event, session) => {
           syncAuthUser(session?.user || null);
         });
-        if (data?.subscription) {
-          window.__authSubscription = data.subscription;
+        authStateSubscription = data?.subscription || null;
+        if (authStateSubscription) {
+          try { window.__authSubscription = authStateSubscription; } catch {}
+        } else {
+          try { window.__authSubscription = null; } catch {}
         }
       } catch (err) {
         console.error('auth state listener failed', err);
@@ -3527,6 +3578,7 @@
       const friendsRaw = (lbFriends?.value || '').trim();
       const url = (lbUrl?.value || '').trim();
       const key = (lbKey?.value || '').trim();
+      const prevHash = supabaseConfigHash;
       try {
         localStorage.setItem('lbFriends', friendsRaw);
         localStorage.setItem('lbUrl', url);
@@ -3541,6 +3593,10 @@
         const cfg = getLbConfig();
         if (cfg.id && cfg.url && cfg.key) {
           upsertScore(computeWeeklyTotalAll(), cfg);
+        }
+        const newHash = computeSupabaseHash(cfg.url, cfg.key);
+        if (newHash !== prevHash) {
+          handleSupabaseConfigChange();
         }
       } catch {}
     });

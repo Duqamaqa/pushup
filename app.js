@@ -3050,6 +3050,13 @@
       showAuthFeedback(t('authUnavailable'), 'error');
       return false;
     }
+    function isInvalidCredentialsError(err) {
+      if (!err) return false;
+      const code = String(err.code || '').toLowerCase();
+      if (code === 'invalid_credentials' || code === 'invalid_login_credentials') return true;
+      const msg = String(err.message || '').toLowerCase();
+      return msg.includes('invalid login') || msg.includes('invalid email or password');
+    }
     async function handleAuthNext() {
       if (!ensureAuthReady()) return;
       const email = (authEmailInput?.value || '').trim();
@@ -3062,16 +3069,23 @@
       clearAuthMessage();
       setAuthBusy(true);
       try {
-        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-        if (error) {
-          const msgText = (error.message || '').toLowerCase();
-          if (msgText.includes('invalid login')) {
-            showAuthFeedback(t('authAccountMissing'), 'error');
-            return;
-          }
-          throw error;
+        const { data: loginData, error: loginError } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (!loginError) {
+          showAuthFeedback(t('authLoginSuccess'), 'success');
+          if (loginData?.user) syncAuthUser(loginData.user);
+          return;
         }
-        showAuthFeedback(t('authLoginSuccess'), 'success');
+        if (isInvalidCredentialsError(loginError)) {
+          const { data: signupData, error: signupError } = await supabaseClient.auth.signUp({ email, password });
+          if (signupError) throw signupError;
+          const confirmed = !!signupData?.user?.confirmed_at;
+          showAuthFeedback(confirmed ? t('authRegisterSuccess') : t('authCheckEmail'), 'success');
+          if (signupData?.session?.user) {
+            syncAuthUser(signupData.session.user);
+          }
+          return;
+        }
+        throw loginError;
       } catch (err) {
         const msg = (err && err.message) ? err.message : t('authUnknownError');
         showAuthFeedback(msg, 'error');

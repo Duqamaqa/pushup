@@ -194,6 +194,8 @@
       account:'Account', logIn:'Log In', register:'Register', logOut:'Log Out',
       friendEmailLabel:'Friend Email', friendNameLabel:'Friend Name', saveFriend:'Save Friend', friendEmailErr:'Enter a valid friend email.',
       noFriendsYet:'No friends yet.', friendAdded:'Friend saved.', friendUpdated:'Friend updated.', friendNoName:'Unnamed friend',
+      friendDetailTitle:'Friend Progress', friendDetailLoading:'Loading friend progress…', friendDetailError:'Could not load this friend right now.',
+      friendDetailNoData:'No exercises shared yet.', friendDetailNoAccess:'This friend is not sharing workouts with you.', friendDetailUpdated:'Last updated {when}',
       friendLeaderboardLogin:'Log in to share your email before comparing.', friendMutualHint:'You both must add each other’s email to appear.',
       dark:'Dark', share:'Share', add:'Add New Exercise', global:'Global', perEx:'Per Exercise',
       settings:'Settings', language:'Language', apply:'Apply', cancel:'Cancel', history:'History', close:'Close',
@@ -257,6 +259,8 @@
       account:'Konto', logIn:'Anmelden', register:'Registrieren', logOut:'Abmelden',
       friendEmailLabel:'E-Mail des Freundes', friendNameLabel:'Name des Freundes', saveFriend:'Freund speichern', friendEmailErr:'Gib eine gültige E-Mail ein.',
       noFriendsYet:'Noch keine Freunde eingetragen.', friendAdded:'Freund gespeichert.', friendUpdated:'Freund aktualisiert.', friendNoName:'Unbenannter Freund',
+      friendDetailTitle:'Fortschritt des Freundes', friendDetailLoading:'Lade Fortschritt…', friendDetailError:'Freund konnte gerade nicht geladen werden.',
+      friendDetailNoData:'Noch keine geteilten Übungen.', friendDetailNoAccess:'Dieser Freund teilt seine Workouts nicht mit dir.', friendDetailUpdated:'Zuletzt aktualisiert {when}',
       friendLeaderboardLogin:'Melde dich an und teile deine E-Mail, um dich zu vergleichen.', friendMutualHint:'Ihr müsst gegenseitig eure E-Mails hinzufügen, um zu erscheinen.',
       dark:'Dunkel', share:'Teilen', add:'Neue Übung hinzufügen', global:'Global', perEx:'Pro Übung',
       settings:'Einstellungen', language:'Sprache', apply:'Anwenden', cancel:'Abbrechen', history:'Verlauf', close:'Schließen',
@@ -319,6 +323,8 @@
       appTitle:'Ежедневный счётчик упражнений', header:'Мои упражнения', friends:'Друзья', friendsHint:'Пригласите друзей и сравните прогресс.', addFriend:'Добавить друга',
       friendEmailLabel:'Email друга', friendNameLabel:'Имя друга', saveFriend:'Сохранить друга', friendEmailErr:'Введите корректный email.',
       noFriendsYet:'Пока нет друзей.', friendAdded:'Друг сохранён.', friendUpdated:'Друг обновлён.', friendNoName:'Без имени',
+      friendDetailTitle:'Прогресс друга', friendDetailLoading:'Загрузка прогресса…', friendDetailError:'Не удалось загрузить друга.',
+      friendDetailNoData:'Друг ещё не поделился упражнениями.', friendDetailNoAccess:'Этот друг пока не делится тренировками с вами.', friendDetailUpdated:'Обновлено {when}',
       friendLeaderboardLogin:'Войдите и поделитесь своим email, чтобы участвовать.', friendMutualHint:'Вы оба должны добавить email друг друга, чтобы появиться.',
       account:'Аккаунт', logIn:'Войти', register:'Регистрация', logOut:'Выйти',
       dark:'Тёмная тема', share:'Поделиться', add:'Добавить упражнение', global:'Глобальные', perEx:'По упражнению',
@@ -447,6 +453,8 @@
       // Friends leaderboard title
       const lbTitle = document.getElementById('friendsLeaderboardTitle');
       if (lbTitle) setText(lbTitle, dict.leaderboard);
+      const detailTitle = document.getElementById('friendDetailTitle');
+      if (detailTitle) setText(detailTitle, dict.friendDetailTitle);
       // Per-exercise actions
       const viewHistBtn = document.getElementById('settingsHistoryBtn');
       if (viewHistBtn) setText(viewHistBtn, dict.viewHistory);
@@ -616,9 +624,11 @@
   function snapshotLocalStateForRemote(overrides) {
     const exercises = Array.isArray(overrides?.exercises) ? overrides.exercises : (loadExercises() || []);
     const friends = Array.isArray(overrides?.friends) ? overrides.friends : readFriendEntries();
+    const ownerEmail = getSelfEmail();
     return {
       version: REMOTE_PAYLOAD_VERSION,
       updatedAt: new Date().toISOString(),
+      ownerEmail,
       exercises,
       friends,
     };
@@ -1078,6 +1088,11 @@
   const friendEmailInput = document.getElementById('friendEmailInput');
   const friendNameInput = document.getElementById('friendNameInput');
   const friendEmailError = document.getElementById('friendEmailError');
+  const friendDetailTitleEl = document.getElementById('friendDetailTitle');
+  const friendDetailModal = document.getElementById('friendDetailModal');
+  const friendDetailMeta = document.getElementById('friendDetailMeta');
+  const friendDetailList = document.getElementById('friendDetailList');
+  const closeFriendDetailBtn = document.getElementById('closeFriendDetailBtn');
   let manualThemeSelection = false;
   let themeButtons = [];
   let questGoalRows = [];
@@ -3164,6 +3179,79 @@
       if (friendNameInput) friendNameInput.value = '';
       addFriendBtn?.removeAttribute('hidden');
     }
+    function formatFriendDetailTime(value) {
+      if (!value) return '';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '';
+      try {
+        return new Intl.DateTimeFormat(getLang(), { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+      } catch {
+        return date.toLocaleString();
+      }
+    }
+    function setFriendDetailMeta(text) {
+      if (friendDetailMeta) friendDetailMeta.textContent = text || '';
+    }
+    function setFriendDetailMessage(msgKey) {
+      if (!friendDetailList) return;
+      friendDetailList.innerHTML = '';
+      const p = document.createElement('p');
+      p.className = 'friend-detail-empty';
+      p.textContent = typeof msgKey === 'string' ? msgKey : '';
+      friendDetailList.appendChild(p);
+    }
+    function renderFriendDetailRows(rows) {
+      if (!friendDetailList) return;
+      friendDetailList.innerHTML = '';
+      rows.forEach((row) => {
+        const item = document.createElement('div');
+        item.className = 'friend-detail-item';
+        const left = document.createElement('strong');
+        left.textContent = row.exerciseName || t('friendNoName');
+        const right = document.createElement('span');
+        right.textContent = row.display || '';
+        item.append(left, right);
+        friendDetailList.appendChild(item);
+      });
+    }
+    let friendDetailToken = 0;
+    async function fetchFriendPayloadByEmail(email, cfg) {
+      const base = cfg?.url;
+      const key = cfg?.key;
+      if (!base || !key || !email) return null;
+      const filter = encodeURIComponent(email);
+      const resp = await fetch(`${base}/rest/v1/${REMOTE_TABLE}?select=payload&payload->>ownerEmail=eq.${filter}&limit=1`, {
+        headers: {
+          'apikey': key,
+          'Authorization': 'Bearer ' + key
+        }
+      });
+      if (!resp.ok) throw new Error('fetch_failed');
+      const data = await resp.json();
+      return data?.[0]?.payload || null;
+    }
+    function openFriendDetailModal(entry, { loading = true } = {}) {
+      if (!friendDetailModal) return;
+      friendDetailModal.classList.remove('hidden');
+      document.body.classList.add('no-scroll');
+      if (friendDetailTitleEl) {
+        const label = (entry?.name || entry?.email || t('friendDetailTitle'));
+        setText(friendDetailTitleEl, label);
+      }
+      setFriendDetailMeta(entry?.email || '');
+      if (loading) {
+        setFriendDetailMessage(t('friendDetailLoading'));
+      }
+    }
+    function closeFriendDetailModal() {
+      friendDetailToken++;
+      friendDetailModal?.classList.add('hidden');
+      if (!friendsModal || friendsModal.classList.contains('hidden')) {
+        document.body.classList.remove('no-scroll');
+      }
+      setFriendDetailMeta('');
+      if (friendDetailList) friendDetailList.innerHTML = '';
+    }
     function renderFriendsList() {
       if (!friendsListEl) return;
       const entries = getFriendEntries();
@@ -3177,12 +3265,21 @@
       entries.forEach((entry) => {
         const row = document.createElement('div');
         row.className = 'friends-row';
+        row.setAttribute('role', 'button');
+        row.setAttribute('tabindex', '0');
         const nameEl = document.createElement('strong');
         nameEl.textContent = entry.name || t('friendNoName');
         const emailEl = document.createElement('span');
         emailEl.textContent = entry.email;
         row.appendChild(nameEl);
         row.appendChild(emailEl);
+        row.addEventListener('click', () => viewFriendDetail(entry));
+        row.addEventListener('keypress', (ev) => {
+          if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            viewFriendDetail(entry);
+          }
+        });
         friendsListEl.appendChild(row);
       });
     }
@@ -3277,6 +3374,70 @@
       refreshFriendsLeaderboard({ showLoading: false }).catch(() => {});
       friendEmailInput?.focus();
     }
+    function buildFriendExerciseRows(exercises) {
+      const today = todayStrUTC();
+      return (Array.isArray(exercises) ? exercises : [])
+        .map((ex) => {
+          const todayDone = Number(ex?.history?.[today]?.done || 0);
+          const name = ex?.exerciseName || t('fallbackExercise');
+          const target = Math.max(0, Number(ex?.dailyTarget || 0));
+          const unit = ex?.unit || 'reps';
+          const display = target
+            ? `${todayDone} / ${target} ${unit}`
+            : `${todayDone} ${unit}`;
+          return { exerciseName: name, display, done: todayDone };
+        })
+        .sort((a, b) => b.done - a.done);
+    }
+    async function viewFriendDetail(entry) {
+      const email = normalizeEmail(entry?.email || '');
+      if (!email) {
+        showToast(t('friendEmailErr'));
+        return;
+      }
+      const cfg = getLbConfig();
+      if (!cfg?.url || !cfg?.key) {
+        showToast(t('cfgSupabaseFirst'));
+        return;
+      }
+      openFriendDetailModal(entry);
+      const token = ++friendDetailToken;
+      try {
+        const payload = await fetchFriendPayloadByEmail(email, cfg);
+        if (token !== friendDetailToken) return;
+        if (!payload?.exercises) {
+          setFriendDetailMeta(entry?.email || '');
+          setFriendDetailMessage(t('friendDetailNoData'));
+          return;
+        }
+        const myEmail = normalizeEmail(getSelfEmail());
+        const friendAllows = Array.isArray(payload.friends)
+          ? payload.friends.some((f) => normalizeEmail(f?.email) === myEmail)
+          : false;
+        if (!friendAllows) {
+          setFriendDetailMeta(entry?.email || '');
+          setFriendDetailMessage(t('friendDetailNoAccess'));
+          return;
+        }
+        const rows = buildFriendExerciseRows(payload.exercises);
+        if (!rows.length) {
+          setFriendDetailMeta(entry?.email || '');
+          setFriendDetailMessage(t('friendDetailNoData'));
+          return;
+        }
+        const updatedAt = payload.updatedAt || payload.updated_at;
+        const timeLabel = updatedAt ? t('friendDetailUpdated', { when: formatFriendDetailTime(updatedAt) }) : '';
+        const metaParts = [entry?.email || '', timeLabel].filter(Boolean);
+        setFriendDetailMeta(metaParts.join(' • '));
+        renderFriendDetailRows(rows);
+      } catch (err) {
+        console.warn('friend detail fetch failed', err);
+        if (token === friendDetailToken) {
+          setFriendDetailMeta(entry?.email || '');
+          setFriendDetailMessage(t('friendDetailError'));
+        }
+      }
+    }
     function syncFriendEmailsToSettings(entries) {
       const emails = (entries || getFriendEntries()).map((entry) => entry.email).filter(Boolean);
       const joined = emails.join(', ');
@@ -3320,6 +3481,7 @@
     accountAvatarBtn?.addEventListener('click', openAuthModal);
     closeSettingsBtn?.addEventListener('click', closeSettingsModal);
     closeFriendsBtn?.addEventListener('click', closeFriendsModal);
+    closeFriendDetailBtn?.addEventListener('click', closeFriendDetailModal);
     authCloseBtn?.addEventListener('click', closeAuthModal);
     authNextBtn?.addEventListener('click', handleAuthNext);
     authLogoutBtn?.addEventListener('click', handleAuthLogout);
@@ -3342,6 +3504,7 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         if (!shareModal?.classList.contains('hidden')) { closeShareModal(); return; }
+        if (!friendDetailModal?.classList.contains('hidden')) { closeFriendDetailModal(); return; }
         if (!friendsModal?.classList.contains('hidden')) { closeFriendsModal(); return; }
         if (!settingsModal?.classList.contains('hidden')) { closeSettingsModal(); return; }
         if (!authModal?.classList.contains('hidden')) { closeAuthModal(); return; }
@@ -3355,6 +3518,9 @@
     });
     friendsModal?.addEventListener('click', (e) => {
       if (e.target === friendsModal) closeFriendsModal();
+    });
+    friendDetailModal?.addEventListener('click', (e) => {
+      if (e.target === friendDetailModal) closeFriendDetailModal();
     });
     authModal?.addEventListener('click', (e) => {
       if (e.target === authModal) closeAuthModal();

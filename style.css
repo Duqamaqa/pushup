@@ -520,6 +520,43 @@ button.large {
 .friends-leaderboard-row.is-me {
   color: var(--accent);
 }
+.friend-detail {
+  max-width: 420px;
+}
+.friend-detail-meta {
+  margin: 6px 0 16px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  min-height: 1.4em;
+}
+.friend-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 300px;
+  overflow: auto;
+  text-align: left;
+}
+.friend-detail-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.friend-detail-item strong {
+  font-size: 1rem;
+}
+.friend-detail-item span {
+  font-variant-numeric: tabular-nums;
+}
+.friend-detail-empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 18px 6px;
+}
 .friends-actions {
   display: grid;
   gap: 10px;

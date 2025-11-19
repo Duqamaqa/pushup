@@ -460,6 +460,66 @@ button.large {
   font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
+.friends-leaderboard {
+  margin-top: 14px;
+  text-align: left;
+}
+.friends-leaderboard-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.friends-leaderboard h3 {
+  margin: 4px 0;
+}
+.friends-subcopy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.friends-leaderboard-list {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.95rem;
+  max-height: 220px;
+  overflow: auto;
+}
+.friends-leaderboard-list.empty {
+  color: var(--muted);
+}
+.friends-leaderboard-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.friends-leaderboard-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.friends-leaderboard-rank {
+  font-weight: 600;
+  color: var(--muted);
+}
+.friends-leaderboard-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.friends-leaderboard-total {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.friends-leaderboard-row.is-me {
+  color: var(--accent);
+}
 .friends-actions {
   display: grid;
   gap: 10px;

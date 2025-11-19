@@ -37,8 +37,22 @@
   // Optional Supabase (configured via Settings)
   const SUPABASE_URL = 'https://ztmhypducvrqpgkbfftl.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0bWh5cGR1Y3ZycXBna2JmZnRsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMyODU2NzYsImV4cCI6MjA3ODg2MTY3Nn0.OZrziouM6_cS1ij3JU2KicaM7xBT1l2ynV_anI8asLg';
-  const LB_ID_KEY = 'lbId';
   const LAST_AUTH_EMAIL_KEY = 'authLastEmail';
+
+  function normalizeEmail(value) {
+    return String(value || '').trim().toLowerCase();
+  }
+  function isValidEmail(value) {
+    const normalized = normalizeEmail(value);
+    return !!normalized && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
+  }
+  function getStoredAuthEmail() {
+    try {
+      return normalizeEmail(localStorage.getItem(LAST_AUTH_EMAIL_KEY) || '');
+    } catch {
+      return '';
+    }
+  }
   const EX_TEMPLATES = [
     { name:'Push-ups', unit:'reps', daily:50, steps:[10,20] },
     { name:'Squats',   unit:'reps', daily:60, steps:[10,20] },
@@ -77,6 +91,9 @@
   let supabaseConfigHash = '';
   let authUser = null;
   let authStateSubscription = null;
+  function getSelfEmail() {
+    return normalizeEmail(authUser?.email || getStoredAuthEmail());
+  }
   try { window.currentUser = null; } catch {}
 
   function computeSupabaseHash(url, key) {
@@ -175,12 +192,13 @@
     en: {
       appTitle:'Daily Exercise Counter', header:'My Exercises', friends:'Friends', friendsHint:'Invite friends to compare weekly progress.', addFriend:'Add Friend',
       account:'Account', logIn:'Log In', register:'Register', logOut:'Log Out',
-      friendIdLabel:'Friend ID', friendNameLabel:'Friend Name', saveFriend:'Save Friend', friendIdErr:'Enter a valid 6-digit friend ID.',
+      friendEmailLabel:'Friend Email', friendNameLabel:'Friend Name', saveFriend:'Save Friend', friendEmailErr:'Enter a valid friend email.',
       noFriendsYet:'No friends yet.', friendAdded:'Friend saved.', friendUpdated:'Friend updated.', friendNoName:'Unnamed friend',
+      friendLeaderboardLogin:'Log in to share your email before comparing.', friendMutualHint:'You both must add each other’s email to appear.',
       dark:'Dark', share:'Share', add:'Add New Exercise', global:'Global', perEx:'Per Exercise',
       settings:'Settings', language:'Language', apply:'Apply', cancel:'Cancel', history:'History', close:'Close',
       edit:'Edit',
-      weeklySummary:'Weekly Summary', leaderboard:'Friend Leaderboard', viewHistory:'View History',
+      weeklySummary:'Weekly Summary', leaderboard:'Friend Leaderboard', leaderboardLoading:'Loading leaderboard…', leaderboardError:'Could not load leaderboard. Try again.', viewHistory:'View History',
       addTargetAgain:'Add target again', showWeekly:'Show Weekly Summary', toggleDebug:'Toggle Debug Panel',
       version:'Version', debug:'Debug', storage:'Storage: — KB', cache:'Cache: — KB', fps:'FPS',
       addEditTitle:'Add/Edit Exercise', addTitle:'Add Exercise', editTitle:'Edit Exercise',
@@ -237,12 +255,13 @@
     de: {
       appTitle:'Täglicher Trainingszähler', header:'Meine Übungen', friends:'Freunde', friendsHint:'Lade Freunde ein, um eure Fortschritte zu vergleichen.', addFriend:'Freund hinzufügen',
       account:'Konto', logIn:'Anmelden', register:'Registrieren', logOut:'Abmelden',
-      friendIdLabel:'Freundes-ID', friendNameLabel:'Name des Freundes', saveFriend:'Freund speichern', friendIdErr:'Gib eine gültige 6-stellige ID ein.',
+      friendEmailLabel:'E-Mail des Freundes', friendNameLabel:'Name des Freundes', saveFriend:'Freund speichern', friendEmailErr:'Gib eine gültige E-Mail ein.',
       noFriendsYet:'Noch keine Freunde eingetragen.', friendAdded:'Freund gespeichert.', friendUpdated:'Freund aktualisiert.', friendNoName:'Unbenannter Freund',
+      friendLeaderboardLogin:'Melde dich an und teile deine E-Mail, um dich zu vergleichen.', friendMutualHint:'Ihr müsst gegenseitig eure E-Mails hinzufügen, um zu erscheinen.',
       dark:'Dunkel', share:'Teilen', add:'Neue Übung hinzufügen', global:'Global', perEx:'Pro Übung',
       settings:'Einstellungen', language:'Sprache', apply:'Anwenden', cancel:'Abbrechen', history:'Verlauf', close:'Schließen',
       edit:'Bearbeiten',
-      weeklySummary:'Wöchentliche Übersicht', leaderboard:'Freundes‑Rangliste', viewHistory:'Verlauf anzeigen',
+      weeklySummary:'Wöchentliche Übersicht', leaderboard:'Freundes‑Rangliste', leaderboardLoading:'Rangliste wird geladen …', leaderboardError:'Rangliste konnte nicht geladen werden. Versuche es erneut.', viewHistory:'Verlauf anzeigen',
       addTargetAgain:'Ziel erneut hinzufügen', showWeekly:'Wöchentliche Übersicht zeigen', toggleDebug:'Debug‑Panel umschalten',
       version:'Version', debug:'Debug', storage:'Speicher: — KB', cache:'Cache: — KB', fps:'FPS',
       addEditTitle:'Übung hinzufügen/bearbeiten', addTitle:'Übung hinzufügen', editTitle:'Übung bearbeiten',
@@ -297,12 +316,15 @@
       destTelegram:'Telegram', destWhatsApp:'WhatsApp', destInstagram:'Instagram', destCopy:'Bild + Link kopieren'
     },
     ru: {
-      appTitle:'Ежедневный счётчик упражнений', header:'Мои упражнения',
+      appTitle:'Ежедневный счётчик упражнений', header:'Мои упражнения', friends:'Друзья', friendsHint:'Пригласите друзей и сравните прогресс.', addFriend:'Добавить друга',
+      friendEmailLabel:'Email друга', friendNameLabel:'Имя друга', saveFriend:'Сохранить друга', friendEmailErr:'Введите корректный email.',
+      noFriendsYet:'Пока нет друзей.', friendAdded:'Друг сохранён.', friendUpdated:'Друг обновлён.', friendNoName:'Без имени',
+      friendLeaderboardLogin:'Войдите и поделитесь своим email, чтобы участвовать.', friendMutualHint:'Вы оба должны добавить email друг друга, чтобы появиться.',
       account:'Аккаунт', logIn:'Войти', register:'Регистрация', logOut:'Выйти',
       dark:'Тёмная тема', share:'Поделиться', add:'Добавить упражнение', global:'Глобальные', perEx:'По упражнению',
       settings:'Настройки', language:'Язык', apply:'Применить', cancel:'Отмена', history:'История', close:'Закрыть',
       edit:'Редактировать',
-      weeklySummary:'Недельная сводка', leaderboard:'Таблица друзей', viewHistory:'Открыть историю',
+      weeklySummary:'Недельная сводка', leaderboard:'Таблица друзей', leaderboardLoading:'Загрузка таблицы…', leaderboardError:'Не удалось загрузить таблицу. Повторите попытку.', viewHistory:'Открыть историю',
       addTargetAgain:'Добавить цель ещё раз', showWeekly:'Показать недельную сводку', toggleDebug:'Панель отладки',
       version:'Версия', debug:'Отладка', storage:'Хранилище: — КБ', cache:'Кэш: — КБ', fps:'FPS',
       addEditTitle:'Добавить/редактировать упражнение', addTitle:'Добавить упражнение', editTitle:'Редактировать упражнение',
@@ -422,11 +444,9 @@
       if (wkTitle) setText(wkTitle, dict.weeklySummary);
       const wkClose = document.getElementById('closeWeekly');
       if (wkClose) setText(wkClose, dict.close);
-      // Leaderboard modal
-      const lbTitle = document.querySelector('#leaderboardModal h2');
+      // Friends leaderboard title
+      const lbTitle = document.getElementById('friendsLeaderboardTitle');
       if (lbTitle) setText(lbTitle, dict.leaderboard);
-      const lbClose = document.getElementById('closeLeaderboard');
-      if (lbClose) setText(lbClose, dict.close);
       // Per-exercise actions
       const viewHistBtn = document.getElementById('settingsHistoryBtn');
       if (viewHistBtn) setText(viewHistBtn, dict.viewHistory);
@@ -638,10 +658,10 @@
 
   function sanitizeFriendEntry(entry) {
     if (!entry) return null;
-    const id = String(entry.id || '').trim();
-    if (!/^\d{6}$/.test(id)) return null;
+    const email = normalizeEmail(entry.email || entry.id || '');
+    if (!isValidEmail(email)) return null;
     return {
-      id,
+      email,
       name: String(entry.name || '').trim(),
     };
   }
@@ -650,11 +670,11 @@
     const map = new Map();
     (Array.isArray(localList) ? localList : []).forEach((entry) => {
       const sanitized = sanitizeFriendEntry(entry);
-      if (sanitized) map.set(sanitized.id, sanitized);
+      if (sanitized) map.set(sanitized.email, sanitized);
     });
     (Array.isArray(remoteList) ? remoteList : []).forEach((entry) => {
       const sanitized = sanitizeFriendEntry(entry);
-      if (sanitized) map.set(sanitized.id, sanitized);
+      if (sanitized) map.set(sanitized.email, sanitized);
     });
     return Array.from(map.values());
   }
@@ -671,12 +691,13 @@
     try {
       saveExercises(mergedExercises);
       writeFriendEntries(mergedFriends);
-      syncFriendIdsToSettings(mergedFriends);
+      syncFriendEmailsToSettings(mergedFriends);
     } finally {
       remoteApplyingPayload = false;
     }
     try { renderDashboard(); } catch {}
     try { renderFriendsList(); } catch {}
+    try { refreshFriendsLeaderboard({ showLoading: false }); } catch {}
     pushRemoteState().catch((err) => console.warn('post-hydrate sync failed', err));
   }
 
@@ -968,7 +989,7 @@
     try {
       if (decStr) {
         const cfg = getLbConfig?.();
-        if (cfg && cfg.id && cfg.url && cfg.key) {
+        if (cfg && cfg.email && cfg.url && cfg.key) {
           upsertScore(computeWeeklyTotalAll(), cfg);
         }
       }
@@ -1048,16 +1069,15 @@
   const sparkTooltip = document.getElementById('sparkTooltip');
   const HISTORY_TAB_KEY = 'historyTab';
   const shareCardBtn = document.getElementById('shareCardBtn');
-  const leaderboardModal = document.getElementById('leaderboardModal');
   const leaderboardList = document.getElementById('leaderboardList');
   const friendsModal = document.getElementById('friendsModal');
   const closeFriendsBtn = document.getElementById('closeFriendsBtn');
   const addFriendBtn = document.getElementById('addFriendBtn');
   const friendsForm = document.getElementById('friendsForm');
   const friendsListEl = document.getElementById('friendsList');
-  const friendIdInput = document.getElementById('friendIdInput');
+  const friendEmailInput = document.getElementById('friendEmailInput');
   const friendNameInput = document.getElementById('friendNameInput');
-  const friendIdError = document.getElementById('friendIdError');
+  const friendEmailError = document.getElementById('friendEmailError');
   let manualThemeSelection = false;
   let themeButtons = [];
   let questGoalRows = [];
@@ -1230,32 +1250,18 @@
   }
 
   // --- Leaderboard helpers ---
-  function randomLbId() {
-    return String(Math.floor(100000 + Math.random() * 900000));
-  }
-  function ensureLeaderboardId() {
-    let stored = '';
-    try {
-      stored = localStorage.getItem(LB_ID_KEY) || localStorage.getItem('lbName') || '';
-    } catch {}
-    if (!/^\d{6}$/.test(stored)) stored = randomLbId();
-    try {
-      localStorage.setItem(LB_ID_KEY, stored);
-      localStorage.setItem('lbName', stored);
-    } catch {}
-    return stored;
-  }
-  function normalizeFriendIds(raw, selfId) {
+  function normalizeFriendEmails(raw, selfEmail) {
     const out = [];
     const seen = new Set();
+    const me = normalizeEmail(selfEmail);
     (raw || '')
-      .split(/[^0-9]+/)
-      .map((s) => s.trim())
+      .split(/[\s,;]+/)
+      .map((s) => normalizeEmail(s))
       .filter(Boolean)
-      .forEach((id) => {
-        if (/^\d{6}$/.test(id) && id !== selfId && !seen.has(id)) {
-          seen.add(id);
-          out.push(id);
+      .forEach((email) => {
+        if (email && email !== me && !seen.has(email)) {
+          seen.add(email);
+          out.push(email);
         }
       });
     return out;
@@ -1264,10 +1270,10 @@
     if (!raw) return [];
     if (Array.isArray(raw)) {
       return raw
-        .map((v) => String(v || '').trim())
-        .filter((v) => /^\d{6}$/.test(v));
+        .map((v) => normalizeEmail(v))
+        .filter(Boolean);
     }
-    return normalizeFriendIds(String(raw || ''), '');
+    return normalizeFriendEmails(String(raw || ''), '');
   }
   function readFriendEntries() {
     try {
@@ -1277,10 +1283,10 @@
       if (!Array.isArray(parsed)) return [];
       return parsed
         .map((item) => ({
-          id: String(item?.id || '').trim(),
+          email: normalizeEmail(item?.email || item?.id || ''),
           name: String(item?.name || '').trim()
         }))
-        .filter((item) => /^\d{6}$/.test(item.id));
+        .filter((item) => isValidEmail(item.email));
     } catch {
       return [];
     }
@@ -1292,9 +1298,9 @@
   function seedFriendEntriesFromRaw() {
     let raw = '';
     try { raw = localStorage.getItem('lbFriends') || ''; } catch {}
-    const ids = normalizeFriendIds(raw, ensureLeaderboardId());
-    if (!ids.length) return [];
-    const seeded = ids.map((id) => ({ id, name: '' }));
+    const emails = normalizeFriendEmails(raw, getSelfEmail());
+    if (!emails.length) return [];
+    const seeded = emails.map((email) => ({ email, name: '' }));
     writeFriendEntries(seeded);
     return seeded;
   }
@@ -1305,23 +1311,16 @@
   function getLbConfig() {
     const fallbackUrl = (SUPABASE_URL || '').trim();
     const fallbackKey = (SUPABASE_ANON || '').trim();
-    let id = '';
-    try {
-      id = ensureLeaderboardId();
-    } catch {}
+    const email = getSelfEmail();
     try {
       const url = (localStorage.getItem('lbUrl') || fallbackUrl).trim();
       const key = (localStorage.getItem('lbKey') || fallbackKey).trim();
       const friendRaw = localStorage.getItem('lbFriends') || '';
-      const friendIds = normalizeFriendIds(friendRaw, id);
-      return { id, url, key, friendRaw, friendIds };
+      const friendEmails = normalizeFriendEmails(friendRaw, email);
+      return { email, url, key, friendRaw, friendEmails };
     } catch {
-      return { id, url: fallbackUrl, key: fallbackKey, friendRaw:'', friendIds:[] };
+      return { email, url: fallbackUrl, key: fallbackKey, friendRaw:'', friendEmails:[] };
     }
-  }
-  function supaConfigured() {
-    const { url, key, id } = getLbConfig();
-    return !!(url && key && id);
   }
   function handleSupabaseConfigChange() {
     ensureSupabaseClient(true);
@@ -1338,13 +1337,13 @@
   async function upsertScore(total, cfgOverride) {
     const cfg = cfgOverride || getLbConfig();
     if (!cfg) return;
-    const { url, key, id, friendIds } = cfg;
-    if (!url || !key || !id) return;
+    const { url, key, email, friendEmails } = cfg;
+    if (!url || !key || !email) return;
     const body = [{
-      name: id,
+      name: email,
       total,
       week: lastSundayStr(),
-      friends: friendIds.join(',')
+      friends: (friendEmails || []).join(',')
     }];
     try {
       await fetch(`${url}/rest/v1/leaderboard`, {
@@ -1362,8 +1361,9 @@
     }
   }
   async function loadLeaderboard() {
-    const { url, key, id, friendIds } = getLbConfig();
-    if (!url || !key || !id) return [];
+    const { url, key, email, friendEmails } = getLbConfig();
+    const me = normalizeEmail(email);
+    if (!url || !key || !me) return [];
     const week = lastSundayStr();
     try {
       const resp = await fetch(`${url}/rest/v1/leaderboard?select=*&week=eq.${week}&order=total.desc&limit=50`, {
@@ -1371,14 +1371,14 @@
       });
       if (!resp.ok) return [];
       let rows = await resp.json();
-      const myFriends = new Set(friendIds || []);
+      const myFriends = new Set((friendEmails || []).map((value) => normalizeEmail(value)));
       rows = rows.filter((row) => {
-        const rowId = String(row?.name || '').trim();
-        if (!rowId) return false;
-        if (rowId === id) return true;
-        if (!myFriends.has(rowId)) return false;
+        const rowEmail = normalizeEmail(row?.name || '');
+        if (!rowEmail) return false;
+        if (rowEmail === me) return true;
+        if (!myFriends.has(rowEmail)) return false;
         const remoteFriends = new Set(parseFriendString(row?.friends || ''));
-        return remoteFriends.has(id);
+        return remoteFriends.has(me);
       });
       return rows;
     } catch (e) {
@@ -1751,7 +1751,7 @@
     }
     try {
       const cfg = getLbConfig();
-      if (cfg.id && cfg.url && cfg.key) upsertScore(computeWeeklyTotalAll(), cfg);
+      if (cfg.email && cfg.url && cfg.key) upsertScore(computeWeeklyTotalAll(), cfg);
     } catch {}
     if (!isQuestTheme()) {
       updateExerciseCardView(ex);
@@ -1779,7 +1779,7 @@
     persistExercise(ex);
     try {
       const cfg = getLbConfig();
-      if (cfg.id && cfg.url && cfg.key) upsertScore(computeWeeklyTotalAll(), cfg);
+      if (cfg.email && cfg.url && cfg.key) upsertScore(computeWeeklyTotalAll(), cfg);
     } catch {}
     if (!isQuestTheme()) {
       updateExerciseCardView(ex);
@@ -2351,7 +2351,7 @@
     try { window.dispatchEvent(new CustomEvent('exercise-deleted', { detail: { id: exId } })); } catch {}
     try {
       const cfg = getLbConfig();
-      if (cfg.id && cfg.url && cfg.key) upsertScore(computeWeeklyTotalAll(), cfg);
+      if (cfg.email && cfg.url && cfg.key) upsertScore(computeWeeklyTotalAll(), cfg);
     } catch {}
     try {
       const name = removed?.exerciseName || t('fallbackExercise');
@@ -2378,7 +2378,7 @@
       // Push updated weekly total to leaderboard (if configured)
       try {
         const cfg = getLbConfig();
-        if (cfg.id && cfg.url && cfg.key) upsertScore(computeWeeklyTotalAll(), cfg);
+        if (cfg.email && cfg.url && cfg.key) upsertScore(computeWeeklyTotalAll(), cfg);
       } catch {}
       // Confetti when first reaching done today (do not disable buttons)
       if ((ex.remaining || 0) <= 0) {
@@ -2578,12 +2578,10 @@
     const importBtn = $('#importBtn');
     const addExerciseBtn = $('#addExerciseBtn');
     const showWeeklyNowBtn = document.getElementById('showWeeklyNowBtn');
-    const lbIdField = document.getElementById('lbId');
     const lbFriends = document.getElementById('lbFriends');
     const lbUrl = document.getElementById('lbUrl');
     const lbKey = document.getElementById('lbKey');
     const saveLbCfgBtn = document.getElementById('saveLbCfgBtn');
-    const openLeaderboardBtn = document.getElementById('openLeaderboardBtn');
     const forceReloadBtn = document.getElementById('forceReloadBtn');
     const exerciseSelect = $('#exerciseSelect');
     const customAmount = $('#customAmount');
@@ -2902,11 +2900,9 @@
       // Prefill leaderboard config and toggle leaderboard button
       try {
         const cfg = getLbConfig();
-        if (lbIdField) lbIdField.value = cfg.id || '';
         if (lbFriends) lbFriends.value = cfg.friendRaw || '';
         if (lbUrl) lbUrl.value = cfg.url || '';
         if (lbKey) lbKey.value = cfg.key || '';
-        if (openLeaderboardBtn) openLeaderboardBtn.style.display = (cfg.url && cfg.key && cfg.id) ? '' : 'none';
       } catch {}
       m.classList.remove('hidden');
       document.body.classList.add('no-scroll');
@@ -2995,8 +2991,9 @@
       });
     }
     function persistAuthEmail(email) {
-      if (!email) return;
-      try { localStorage.setItem(LAST_AUTH_EMAIL_KEY, email); } catch {}
+      const normalized = normalizeEmail(email);
+      if (!normalized) return;
+      try { localStorage.setItem(LAST_AUTH_EMAIL_KEY, normalized); } catch {}
     }
     function hydrateStoredAuthEmail() {
       if (!authEmailInput) return;
@@ -3138,18 +3135,18 @@
       }
     }
 
-    function hideFriendIdError() {
-      if (friendIdError) friendIdError.hidden = true;
+    function hideFriendEmailError() {
+      if (friendEmailError) friendEmailError.hidden = true;
     }
-    function showFriendIdError(msg) {
-      if (!friendIdError) return;
-      friendIdError.textContent = msg || t('friendIdErr');
-      friendIdError.hidden = false;
+    function showFriendEmailError(msg) {
+      if (!friendEmailError) return;
+      friendEmailError.textContent = msg || t('friendEmailErr');
+      friendEmailError.hidden = false;
     }
     function resetFriendsFormState() {
       if (friendsForm) friendsForm.setAttribute('hidden', '');
-      hideFriendIdError();
-      if (friendIdInput) friendIdInput.value = '';
+      hideFriendEmailError();
+      if (friendEmailInput) friendEmailInput.value = '';
       if (friendNameInput) friendNameInput.value = '';
       addFriendBtn?.removeAttribute('hidden');
     }
@@ -3168,55 +3165,119 @@
         row.className = 'friends-row';
         const nameEl = document.createElement('strong');
         nameEl.textContent = entry.name || t('friendNoName');
-        const idEl = document.createElement('span');
-        idEl.textContent = entry.id;
+        const emailEl = document.createElement('span');
+        emailEl.textContent = entry.email;
         row.appendChild(nameEl);
-        row.appendChild(idEl);
+        row.appendChild(emailEl);
         friendsListEl.appendChild(row);
       });
     }
+    function setLeaderboardMessage(message) {
+      if (!leaderboardList) return;
+      leaderboardList.innerHTML = '';
+      leaderboardList.classList.add('empty');
+      leaderboardList.textContent = message;
+    }
+    function renderFriendsLeaderboardRows(rows, myEmail) {
+      if (!leaderboardList) return;
+      const list = Array.isArray(rows) ? rows : [];
+      if (!list.length) {
+        setLeaderboardMessage(t('noScores'));
+        return;
+      }
+      leaderboardList.classList.remove('empty');
+      leaderboardList.innerHTML = '';
+      const me = normalizeEmail(myEmail);
+      list.forEach((row, idx) => {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'friends-leaderboard-row';
+        const rowEmail = normalizeEmail(row?.name || '');
+        if (rowEmail && rowEmail === me) {
+          rowEl.classList.add('is-me');
+        }
+        const rankEl = document.createElement('span');
+        rankEl.className = 'friends-leaderboard-rank';
+        rankEl.textContent = `#${idx + 1}`;
+        const nameEl = document.createElement('span');
+        nameEl.className = 'friends-leaderboard-name';
+        nameEl.textContent = row?.name || '—';
+        const totalEl = document.createElement('span');
+        totalEl.className = 'friends-leaderboard-total';
+        totalEl.textContent = String(row?.total ?? 0);
+        rowEl.append(rankEl, nameEl, totalEl);
+        leaderboardList.appendChild(rowEl);
+      });
+    }
+    let friendsLeaderboardLoadToken = 0;
+    async function refreshFriendsLeaderboard({ showLoading = true } = {}) {
+      if (!leaderboardList) return;
+      const cfg = getLbConfig();
+      if (!cfg.url || !cfg.key) {
+        setLeaderboardMessage(t('cfgSupabaseFirst'));
+        return;
+      }
+      if (!cfg.email) {
+        setLeaderboardMessage(t('friendLeaderboardLogin'));
+        return;
+      }
+      if (showLoading) {
+        setLeaderboardMessage(t('leaderboardLoading'));
+      }
+      const token = ++friendsLeaderboardLoadToken;
+      try {
+        const rows = await loadLeaderboard();
+        if (token !== friendsLeaderboardLoadToken) return;
+        renderFriendsLeaderboardRows(rows, cfg.email);
+      } catch (err) {
+        if (token !== friendsLeaderboardLoadToken) return;
+        console.warn('loadLeaderboard failed', err);
+        setLeaderboardMessage(t('leaderboardError'));
+      }
+    }
     function handleFriendSave() {
-      const id = (friendIdInput?.value || '').trim();
+      const emailRaw = (friendEmailInput?.value || '').trim();
+      const email = normalizeEmail(emailRaw);
       const name = (friendNameInput?.value || '').trim();
-      hideFriendIdError();
-      if (!/^\d{6}$/.test(id)) {
-        showFriendIdError(t('friendIdErr'));
-        friendIdInput?.focus();
+      hideFriendEmailError();
+      if (!isValidEmail(email)) {
+        showFriendEmailError(t('friendEmailErr'));
+        friendEmailInput?.focus();
         return;
       }
       const entries = getFriendEntries();
       const next = [...entries];
-      const idx = next.findIndex((f) => f.id === id);
-      const payload = { id, name };
+      const idx = next.findIndex((f) => f.email === email);
+      const payload = { email, name };
       if (idx >= 0) {
         next[idx] = payload;
       } else {
         next.push(payload);
       }
       writeFriendEntries(next);
-      syncFriendIdsToSettings(next);
+      syncFriendEmailsToSettings(next);
       renderFriendsList();
-      if (friendIdInput) friendIdInput.value = '';
+      if (friendEmailInput) friendEmailInput.value = '';
       if (friendNameInput) friendNameInput.value = '';
       const toastKey = idx >= 0 ? 'friendUpdated' : 'friendAdded';
       showToast(t(toastKey));
-      friendIdInput?.focus();
+      refreshFriendsLeaderboard({ showLoading: false }).catch(() => {});
+      friendEmailInput?.focus();
     }
-    function syncFriendIdsToSettings(entries) {
-      const ids = (entries || getFriendEntries()).map((entry) => entry.id).filter(Boolean);
-      const joined = ids.join(', ');
+    function syncFriendEmailsToSettings(entries) {
+      const emails = (entries || getFriendEntries()).map((entry) => entry.email).filter(Boolean);
+      const joined = emails.join(', ');
       try { localStorage.setItem('lbFriends', joined); } catch {}
       if (lbFriends) lbFriends.value = joined;
     }
-    function reconcileFriendEntries(friendsRaw, selfId) {
-      const ids = normalizeFriendIds(friendsRaw || '', selfId || '');
-      if (!ids.length) {
+    function reconcileFriendEntries(friendsRaw, selfEmail) {
+      const emails = normalizeFriendEmails(friendsRaw || '', selfEmail || '');
+      if (!emails.length) {
         writeFriendEntries([]);
         return [];
       }
       const existing = getFriendEntries();
-      const nameMap = new Map(existing.map((entry) => [entry.id, entry.name]));
-      const next = ids.map((id) => ({ id, name: nameMap.get(id) || '' }));
+      const nameMap = new Map(existing.map((entry) => [entry.email, entry.name]));
+      const next = emails.map((email) => ({ email, name: nameMap.get(email) || '' }));
       writeFriendEntries(next);
       return next;
     }
@@ -3225,6 +3286,7 @@
       resetFriendsFormState();
       closeShareModal();
       closeSettingsModal();
+      refreshFriendsLeaderboard().catch(() => {});
       friendsModal?.classList.remove('hidden');
       document.body.classList.add('no-scroll');
     }
@@ -3254,8 +3316,8 @@
     addFriendBtn?.addEventListener('click', () => {
       friendsForm?.removeAttribute('hidden');
       addFriendBtn?.setAttribute('hidden', '');
-      hideFriendIdError();
-      friendIdInput?.focus();
+      hideFriendEmailError();
+      friendEmailInput?.focus();
     });
     friendsForm?.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -3387,7 +3449,7 @@
       });
       try {
         const cfg = getLbConfig();
-        if (cfg.id && cfg.url && cfg.key) upsertScore(computeWeeklyTotalAll(), cfg);
+        if (cfg.email && cfg.url && cfg.key) upsertScore(computeWeeklyTotalAll(), cfg);
       } catch {}
       const message = created.length
         ? `${t('soloProgramApplied')} ${created.length ? t('soloProgramCreated', { list: created.join(', ') }) : ''}`.trim()
@@ -3546,7 +3608,7 @@
       // Push updated weekly total to leaderboard (if configured)
       try {
         const cfg = getLbConfig();
-        if (cfg.id && cfg.url && cfg.key) upsertScore(computeWeeklyTotalAll(), cfg);
+        if (cfg.email && cfg.url && cfg.key) upsertScore(computeWeeklyTotalAll(), cfg);
       } catch {}
     });
 
@@ -3577,7 +3639,7 @@
 
     // Save leaderboard settings
     saveLbCfgBtn?.addEventListener('click', () => {
-      const id = ensureLeaderboardId();
+      const selfEmail = getSelfEmail();
       const friendsRaw = (lbFriends?.value || '').trim();
       const url = (lbUrl?.value || '').trim();
       const key = (lbKey?.value || '').trim();
@@ -3586,15 +3648,14 @@
         localStorage.setItem('lbFriends', friendsRaw);
         localStorage.setItem('lbUrl', url);
         localStorage.setItem('lbKey', key);
-        if (lbIdField) lbIdField.value = id || '';
-        if (openLeaderboardBtn) openLeaderboardBtn.style.display = (id && url && key) ? '' : 'none';
-        reconcileFriendEntries(friendsRaw, id);
+        reconcileFriendEntries(friendsRaw, selfEmail);
         if (friendsModal && !friendsModal.classList.contains('hidden')) {
           renderFriendsList();
         }
+        refreshFriendsLeaderboard({ showLoading: false }).catch(() => {});
         showToast(t('lbSaved'));
         const cfg = getLbConfig();
-        if (cfg.id && cfg.url && cfg.key) {
+        if (cfg.email && cfg.url && cfg.key) {
           upsertScore(computeWeeklyTotalAll(), cfg);
         }
         const newHash = computeSupabaseHash(cfg.url, cfg.key);
@@ -3602,33 +3663,6 @@
           handleSupabaseConfigChange();
         }
       } catch {}
-    });
-
-    async function openLeaderboardModal() {
-      if (!supaConfigured()) { showToast(t('cfgSupabaseFirst')); return; }
-      const rows = await loadLeaderboard();
-      if (leaderboardList) {
-        leaderboardList.innerHTML = '';
-        if (!rows.length) {
-          leaderboardList.textContent = t('noScores');
-        } else {
-          rows.forEach((r, i) => {
-            const div = document.createElement('div');
-            div.className = 'row';
-            const rank = i + 1;
-            div.innerHTML = `<strong>#${rank}</strong> ${r.name || '—'} — ${r.total || 0}`;
-            leaderboardList.appendChild(div);
-          });
-        }
-      }
-      leaderboardModal?.classList.remove('hidden');
-    }
-
-    // Open leaderboard modal
-    openLeaderboardBtn?.addEventListener('click', openLeaderboardModal);
-
-    document.getElementById('closeLeaderboard')?.addEventListener('click', () => {
-      leaderboardModal?.classList.add('hidden');
     });
 
     // Share Progress Card

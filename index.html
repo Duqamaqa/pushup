@@ -166,12 +166,8 @@
             </div>
             <hr>
             <div class="row">
-              <label for="lbId" class="label" data-i18n="leaderboardId">Your ID</label>
-              <input id="lbId" type="text" readonly aria-readonly="true" inputmode="numeric" pattern="[0-9]{6}" autocomplete="off" placeholder="123456">
-            </div>
-            <div class="row">
-              <label for="lbFriends" class="label">Friend IDs (comma-separated)</label>
-              <input id="lbFriends" type="text" placeholder="123456, 654321">
+              <label for="lbFriends" class="label">Friend emails (comma-separated)</label>
+              <input id="lbFriends" type="text" placeholder="ally@example.com, duo@example.com">
             </div>
             <div class="row">
               <label for="lbUrl" class="label" data-i18n="supabaseUrl">Supabase URL</label>
@@ -183,9 +179,6 @@
             </div>
             <div class="row">
               <button id="saveLbCfgBtn" class="btn wfull" data-i18n="saveLb">Save Leaderboard Settings</button>
-            </div>
-            <div class="row">
-              <button id="openLeaderboardBtn" class="btn wfull" data-i18n="openLb">Friend Leaderboard</button>
             </div>
             <hr>
             <div class="row">
@@ -277,26 +270,24 @@
       </div>
     </div>
   </div>
-  <div id="leaderboardModal" class="modal hidden">
-    <div class="modal-content">
-      <h2 data-i18n="leaderboard">Friend Leaderboard</h2>
-      <div id="leaderboardList"></div>
-      <div class="modal-actions">
-        <button id="closeLeaderboard" data-i18n="close">Close</button>
-      </div>
-    </div>
-  </div>
   <div id="friendsModal" class="modal hidden" aria-modal="true" aria-labelledby="friendsTitle">
     <div class="modal-content">
       <h2 id="friendsTitle" data-i18n="friends">Friends</h2>
       <p class="friends-copy" data-i18n="friendsHint">Invite friends to compare weekly progress.</p>
       <div id="friendsList" class="friends-list" data-i18n="noFriendsYet">No friends yet.</div>
+      <section class="friends-leaderboard">
+        <div class="friends-leaderboard-header">
+          <h3 id="friendsLeaderboardTitle" data-i18n="leaderboard">Friend Leaderboard</h3>
+          <p class="friends-subcopy" data-i18n="friendMutualHint">You both must add each other’s email to appear.</p>
+        </div>
+        <div id="leaderboardList" class="friends-leaderboard-list" data-i18n="noScores">No scores yet for this week.</div>
+      </section>
       <div class="friends-actions">
         <button id="addFriendBtn" class="btn primary wfull">+ <span data-i18n="addFriend">Add Friend</span></button>
         <form id="friendsForm" class="friends-form" hidden>
-          <label for="friendIdInput" data-i18n="friendIdLabel">Friend ID</label>
-          <input id="friendIdInput" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="123456" autocomplete="off" />
-          <small id="friendIdError" class="error-msg" hidden data-i18n="friendIdErr">Enter a 6-digit friend ID.</small>
+          <label for="friendEmailInput" data-i18n="friendEmailLabel">Friend Email</label>
+          <input id="friendEmailInput" type="email" placeholder="friend@example.com" autocomplete="off" />
+          <small id="friendEmailError" class="error-msg" hidden data-i18n="friendEmailErr">Enter a valid friend email.</small>
           <label for="friendNameInput" data-i18n="friendNameLabel">Friend Name</label>
           <input id="friendNameInput" type="text" placeholder="Jess" autocomplete="off" />
           <button id="saveFriendBtn" class="btn primary wfull" type="submit" data-i18n="saveFriend">Save Friend</button>

@@ -17,3 +17,8 @@ Write imperative, single-purpose commit messages (e.g., "Add history modal chart
 
 ## Security & Configuration Tips
 Persisted data is limited to `localStorage` under the `exerciseList` key—store no credentials or secrets. Keep the offline experience reliable by ensuring every critical asset is listed in `sw.js` and that `manifest.json` `start_url`/`scope` reflect the correct deployment subpath.
+
+## Friends & Leaderboard Notes
+- Friend entries are keyed by email (normalized, lowercase) and stored via `getFriendEntries()`/`writeFriendEntries()`. Use `normalizeEmail()`/`isValidEmail()` before persisting or comparing.
+- Supabase leaderboard rows now use email identifiers. Always ensure `getSelfEmail()` has a value before calling `upsertScore()`; both parties must add each other’s email for `loadLeaderboard()` to return a row.
+- The friends modal embeds the leaderboard via `refreshFriendsLeaderboard()`, so keep UI tweaks within `index.html`/`style.css` rather than the removed standalone modal. Update `style.css` `.friends-*` blocks when adjusting layout.

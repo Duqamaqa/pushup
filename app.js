@@ -663,8 +663,10 @@
     if (!payload || typeof payload !== 'object') return;
     const remoteExercises = Array.isArray(payload.exercises) ? payload.exercises : [];
     const remoteFriends = Array.isArray(payload.friends) ? payload.friends : [];
-    const mergedExercises = mergeExercises(remoteExercises, loadExercises() || []);
-    const mergedFriends = mergeFriendEntries(remoteFriends, readFriendEntries());
+    const localExercises = loadExercises() || [];
+    const localFriends = readFriendEntries();
+    const mergedExercises = remoteExercises.length ? remoteExercises : mergeExercises(remoteExercises, localExercises);
+    const mergedFriends = remoteFriends.length ? remoteFriends : mergeFriendEntries(remoteFriends, localFriends);
     remoteApplyingPayload = true;
     try {
       saveExercises(mergedExercises);
